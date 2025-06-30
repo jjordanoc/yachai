@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">YachAI</string>
+    <string name="tomar_foto_del_problema">Tomar Foto del Problema</string>
+    <string name="practicar">Practicar</string>
+    <string name="bienvenido_a_yachai">¡Bienvenido a Yachai!</string>
+    <string name="tu_ayudante_de_matematicas">Tu ayudante de matemáticas personal</string>
+</resources>
