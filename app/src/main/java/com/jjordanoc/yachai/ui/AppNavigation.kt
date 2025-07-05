@@ -45,15 +45,8 @@ fun AppNavigation() {
         composable(Routes.PRACTICE_SCREEN) {
             PracticeScreen(navController = navController)
         }
-        composable(
-            route = "${Routes.WHITEBOARD_SCREEN}?useGpu={useGpu}",
-            arguments = listOf(navArgument("useGpu") {
-                type = NavType.BoolType
-                defaultValue = true
-            })
-        ) { backStackEntry ->
-            val useGpu = backStackEntry.arguments!!.getBoolean("useGpu")
-            WhiteboardScreen(useGpu = useGpu)
+        composable(Routes.WHITEBOARD_SCREEN) {
+            WhiteboardScreen()
         }
         composable(Routes.CHAT_SCREEN) {
             ChatScreen()
