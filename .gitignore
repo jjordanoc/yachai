@@ -17,3 +17,5 @@ local.properties
 *.task
 .idea/
 .vscode/
+.cursor/
+app/src/main/java/com/jjordanoc/yachai/utils/api/AzureOpenAIClient.kt

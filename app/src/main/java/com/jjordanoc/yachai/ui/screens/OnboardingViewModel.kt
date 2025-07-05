@@ -4,19 +4,25 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import com.jjordanoc.yachai.R
+import com.jjordanoc.yachai.data.ModelDownloadStatus
+import com.jjordanoc.yachai.data.ModelDownloadStatusType
 import com.jjordanoc.yachai.utils.FileUtils
 import com.jjordanoc.yachai.utils.TAG
-import kotlinx.coroutines.Dispatchers
+import com.jjordanoc.yachai.worker.ModelDownloadWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.io.FileOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
 
 sealed interface DownloadState {
     object Idle : DownloadState
-    object Downloading : DownloadState
+    data class Downloading(val progress: ModelDownloadStatus) : DownloadState
     object Success : DownloadState
     data class Error(val message: String) : DownloadState
 }
@@ -26,48 +32,66 @@ class OnboardingViewModel(application: Application) : AndroidViewModel(applicati
     private val _downloadState = MutableStateFlow<DownloadState>(DownloadState.Idle)
     val downloadState = _downloadState.asStateFlow()
 
-    fun downloadModel() {
-        viewModelScope.launch(Dispatchers.IO) {
-            _downloadState.value = DownloadState.Downloading
-            var connection: HttpURLConnection? = null
-            try {
-                // IMPORTANT: Replace with your actual Hugging Face token.
-                val authToken = "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"
-                val modelUrl = "https://huggingface.co/google/gemma-3n-E2B-it-litert-preview/resolve/main/gemma-3n-E2B-it-int4.task"
-                Log.d(TAG, "Starting model download from: $modelUrl")
-                val context = getApplication<Application>().applicationContext
-                val modelFile = FileUtils.getModelFile(context)
-                Log.d(TAG, "Saving model to: ${modelFile.absolutePath}")
+    private val workManager = WorkManager.getInstance(application)
 
-                val url = URL(modelUrl)
-                connection = url.openConnection() as HttpURLConnection
-                connection.setRequestProperty("Authorization", "Bearer $authToken")
-                connection.instanceFollowRedirects = true
-                connection.connect()
+    fun downloadModel(model: com.jjordanoc.yachai.data.Model) {
+        viewModelScope.launch {
+            _downloadState.value = DownloadState.Downloading(ModelDownloadStatus(ModelDownloadStatusType.IN_PROGRESS))
 
-                val responseCode = connection.responseCode
-                Log.d(TAG, "HTTP Response Code: $responseCode")
+            val inputData = Data.Builder()
+                .putString(ModelDownloadWorker.KEY_MODEL_NAME, model.name)
+                .putString(ModelDownloadWorker.KEY_MODEL_URL, model.url)
+                .putString(ModelDownloadWorker.KEY_MODEL_DOWNLOAD_FILE_NAME, model.downloadFileName)
+                .putLong(ModelDownloadWorker.KEY_MODEL_TOTAL_BYTES, model.sizeInBytes)
+                .putString(ModelDownloadWorker.KEY_AUTH_TOKEN, "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")
+                .build()
 
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    connection.inputStream.use { input ->
-                        FileOutputStream(modelFile).use { output ->
-                            input.copyTo(output)
-                        }
-                    }
-                    _downloadState.value = DownloadState.Success
-                    Log.d(TAG, "Model download successful.")
-                } else {
-                    val errorMsg = "Download failed with HTTP status: $responseCode ${connection.responseMessage}"
-                    Log.e(TAG, errorMsg)
-                    _downloadState.value = DownloadState.Error(errorMsg)
+            val downloadWorkRequest = OneTimeWorkRequestBuilder<ModelDownloadWorker>()
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .setInputData(inputData)
+                .addTag("MODEL_DOWNLOAD:${model.name}")
+                .build()
+
+            workManager.enqueueUniqueWork(
+                model.name,
+                ExistingWorkPolicy.REPLACE,
+                downloadWorkRequest
+            )
+
+            observeDownloadProgress(downloadWorkRequest.id)
+        }
+    }
+
+    private fun observeDownloadProgress(workerId: java.util.UUID) {
+        workManager.getWorkInfoByIdLiveData(workerId).observeForever { workInfo ->
+            when (workInfo?.state) {
+                WorkInfo.State.RUNNING -> {
+                    val receivedBytes = workInfo.progress.getLong(ModelDownloadWorker.KEY_RECEIVED_BYTES, 0L)
+                    val downloadRate = workInfo.progress.getLong(ModelDownloadWorker.KEY_DOWNLOAD_RATE, 0L)
+                    val remainingMs = workInfo.progress.getLong(ModelDownloadWorker.KEY_REMAINING_MS, 0L)
+
+                    _downloadState.value = DownloadState.Downloading(
+                        ModelDownloadStatus(
+                            status = ModelDownloadStatusType.IN_PROGRESS,
+                            totalBytes = workInfo.progress.getLong(ModelDownloadWorker.KEY_MODEL_TOTAL_BYTES, 0L),
+                            receivedBytes = receivedBytes,
+                            bytesPerSecond = downloadRate,
+                            remainingMs = remainingMs
+                        )
+                    )
                 }
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Model download failed: ${e.stackTraceToString()}")
-                _downloadState.value = DownloadState.Error("Error en la descarga: ${e.localizedMessage}")
-            } finally {
-                connection?.disconnect()
+                WorkInfo.State.SUCCEEDED -> {
+                    _downloadState.value = DownloadState.Success
+                }
+                WorkInfo.State.FAILED -> {
+                    val errorMessage = workInfo.outputData.getString(ModelDownloadWorker.KEY_ERROR_MESSAGE) ?: "Download failed"
+                    _downloadState.value = DownloadState.Error(errorMessage)
+                }
+                WorkInfo.State.CANCELLED -> {
+                    _downloadState.value = DownloadState.Error("Download cancelled")
+                }
+                else -> {}
             }
         }
     }
-} 
+}

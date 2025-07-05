@@ -3,6 +3,7 @@ package com.jjordanoc.yachai.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,6 +16,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.jjordanoc.yachai.data.Models
 import com.jjordanoc.yachai.ui.Routes
 
 @Composable
@@ -54,19 +56,29 @@ fun OnboardingScreen(
 
         when (val state = downloadState) {
             is DownloadState.Idle -> {
-                Button(onClick = { onboardingViewModel.downloadModel() }) {
+                Button(onClick = { onboardingViewModel.downloadModel(Models.GEMMA_3N_E2B_VISION) }) {
                     Text("Descargar YachAI")
                 }
             }
             is DownloadState.Downloading -> {
-                CircularProgressIndicator()
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Descargando...")
+                val progress = if (state.progress.totalBytes > 0) {
+                    state.progress.receivedBytes.toFloat() / state.progress.totalBytes.toFloat()
+                } else {
+                    0f
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    LinearProgressIndicator(
+                        progress = progress,
+                        modifier = Modifier.fillMaxWidth(0.8f)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Descargando... ${state.progress.receivedBytes} / ${state.progress.totalBytes}")
+                }
             }
             is DownloadState.Error -> {
                 Text(state.message, color = MaterialTheme.colorScheme.error)
                 Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = { onboardingViewModel.downloadModel() }) {
+                Button(onClick = { onboardingViewModel.downloadModel(Models.GEMMA_3N_E2B_VISION) }) {
                     Text("Intentar de Nuevo")
                 }
             }

@@ -1,9 +1,11 @@
 package com.jjordanoc.yachai.ui
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.jjordanoc.yachai.ui.screens.*
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -15,6 +17,8 @@ object Routes {
     const val CAMERA_SCREEN = "camera"
     const val RESULT_SCREEN = "result/{imageUri}"
     const val PRACTICE_SCREEN = "practice"
+    const val WHITEBOARD_SCREEN = "whiteboard"
+    const val CHAT_SCREEN = "chat"
 }
 
 @Composable
@@ -41,5 +45,18 @@ fun AppNavigation() {
         composable(Routes.PRACTICE_SCREEN) {
             PracticeScreen(navController = navController)
         }
+        composable(
+            route = "${Routes.WHITEBOARD_SCREEN}?useGpu={useGpu}",
+            arguments = listOf(navArgument("useGpu") {
+                type = NavType.BoolType
+                defaultValue = true
+            })
+        ) { backStackEntry ->
+            val useGpu = backStackEntry.arguments!!.getBoolean("useGpu")
+            WhiteboardScreen(useGpu = useGpu)
+        }
+        composable(Routes.CHAT_SCREEN) {
+            ChatScreen()
+        }
     }
-} 
+}
