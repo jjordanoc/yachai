@@ -14,6 +14,7 @@ import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.genai.llminference.GraphOptions
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
+import com.jjordanoc.yachai.data.ModelDownloadStatus
 import com.jjordanoc.yachai.data.Models
 import com.jjordanoc.yachai.data.getLocalPath
 import com.jjordanoc.yachai.utils.TAG
@@ -24,7 +25,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import java.io.File
 
 
 sealed interface ChatMessage {
@@ -124,7 +124,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 Provide a clear, step-by-step explanation.
                 """.trimIndent()
             
-            val result = AzureOpenAIClient.callAzureOpenAIWithImage(prompt, bitmap)
+            val result = AzureOpenAIClient.callAzureOpenAI(prompt = prompt, bitmap = bitmap)
             addMessage(ChatMessage.ModelMessage("LLM Result:\n$result"))
         } catch (e: Exception) {
              Log.e(TAG, "Azure Inference failed: ${e.stackTraceToString()}")

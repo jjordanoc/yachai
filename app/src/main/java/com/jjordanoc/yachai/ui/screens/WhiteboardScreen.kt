@@ -1,20 +1,31 @@
 package com.jjordanoc.yachai.ui.screens
 
 import android.graphics.Paint
+import android.speech.tts.TextToSpeech
+import android.util.Log
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -35,30 +46,35 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.jjordanoc.yachai.utils.TAG
 import java.util.Locale
 import kotlin.math.sqrt
-import android.speech.tts.TextToSpeech
-import android.util.Log
-import com.jjordanoc.yachai.utils.TAG
 
+/*
 val mockJsonResponse = """
 {
-  "tutor_message": {
-    "text": "Veo un triángulo rectángulo ABC con ángulo recto en el punto B. La hipotenusa AC mide 13 unidades y el lado AB mide 5 unidades. ¿Esa es la situación que estás tratando de resolver?",
-    "anchor": "point:B",
-    "position": "above"
-  },
+  "tutor_message": "Veo un triángulo rectángulo ABC con ángulo recto en el punto B. La hipotenusa AC mide 13 unidades y el lado AB mide 5 unidades. ¿Esa es la situación que estás tratando de resolver?",
   "hint": "Recuerda que la hipotenusa es el lado más largo, opuesto al ángulo recto.",
   "animation": [
     {
@@ -75,6 +91,20 @@ val mockJsonResponse = """
 }
 """
 
+val mockJsonResponse2 = """
+{
+  "tutor_message": "Muy bien. Sabemos que AB mide 5 y AC mide 13. El ángulo en B es recto. ¿Qué relación podríamos usar para encontrar la longitud del lado BC?",
+  "hint": "Piensa en la relación que existe entre los lados de un triángulo rectángulo.",
+  "animation": [
+    { "command": "highlightAngle", "args": { "point": "B", "type": "right" } },
+    { "command": "highlightSide", "args": { "segment": "AB" } },
+    { "command": "highlightSide", "args": { "segment": "AC" } },
+    { "command": "highlightSide", "args": { "segment": "BC", "label": "x" } }
+  ]
+}
+"""
+*/
+
 private fun Offset.lerp(other: Offset, fraction: Float): Offset {
     return Offset(
         x = x + (other.x - x) * fraction,
@@ -84,7 +114,11 @@ private fun Offset.lerp(other: Offset, fraction: Float): Offset {
 
 @Composable
 fun WhiteboardScreen(
-    viewModel: WhiteboardViewModel = viewModel()
+    viewModel: WhiteboardViewModel = viewModel(
+        factory = WhiteboardViewModelFactory(
+            LocalContext.current.applicationContext as android.app.Application
+        )
+    )
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var currentPath by remember { mutableStateOf(Path()) }
@@ -99,6 +133,27 @@ fun WhiteboardScreen(
     }
 
     val animationProgress = remember { Animatable(0f) }
+    val tutorMessageAnimatable = remember { Animatable(0f) }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
+    val pulseStrokeWidth by infiniteTransition.animateFloat(
+        initialValue = 15f,
+        targetValue = 22f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseStrokeWidth"
+    )
 
     // --- Text-to-Speech Setup ---
     val context = LocalContext.current
@@ -129,14 +184,23 @@ fun WhiteboardScreen(
     }
     // --- End of TTS Setup ---
 
+    /*
     // Trigger JSON processing and animation
     LaunchedEffect(Unit) {
+        Log.d(TAG, "Processing initial LLM response.")
         viewModel.processLlmResponse(mockJsonResponse)
+
+        Log.d(TAG, "Waiting 15 seconds to simulate user confirmation.")
+        kotlinx.coroutines.delay(15000)
+
+        Log.d(TAG, "Processing second LLM response after delay.")
+        viewModel.processLlmResponse(mockJsonResponse2)
     }
+    */
 
     // Find the triangle to animate from the state
     val animatedTriangle = uiState.items.filterIsInstance<WhiteboardItem.AnimatedTriangle>().firstOrNull()
-    val tutorMessageText = animatedTriangle?.tutorMessage?.text
+    val tutorMessageText = animatedTriangle?.tutorMessage
 
     LaunchedEffect(animatedTriangle) {
         if (animatedTriangle != null) {
@@ -144,7 +208,19 @@ fun WhiteboardScreen(
             animationProgress.snapTo(0f) // Reset progress for new animations
             animationProgress.animateTo(
                 targetValue = 3f, // 3 segments: AB, BC, AC
-                animationSpec = tween(durationMillis = 3000, delayMillis = 500) // 1s per segment, 0.5s delay
+                animationSpec = tween(durationMillis = 6000, delayMillis = 500) // 2s per segment, 0.5s delay
+            )
+        }
+    }
+
+    // Animate tutor message visibility
+    LaunchedEffect(tutorMessageText) {
+        if (tutorMessageText != null) {
+            tutorMessageAnimatable.snapTo(0f)
+            kotlinx.coroutines.delay(4000) // Start animation partway through the main drawing
+            tutorMessageAnimatable.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 1500)
             )
         }
     }
@@ -153,7 +229,7 @@ fun WhiteboardScreen(
     LaunchedEffect(tutorMessageText, ttsInitialized) {
         if (tutorMessageText != null && ttsInitialized) {
             // Wait for visual animation to finish before speaking
-            kotlinx.coroutines.delay(3500)
+            kotlinx.coroutines.delay(6500)
             Log.d(TAG, "Triggering TTS speech for: '$tutorMessageText'")
             tts?.speak(tutorMessageText, TextToSpeech.QUEUE_FLUSH, null, "tutor_message")
         }
@@ -174,46 +250,21 @@ fun WhiteboardScreen(
                 .padding(paddingValues)
                 .fillMaxSize()
                 .clipToBounds()
-                .transformable(state = transformState)
         ) {
+            // Main drawing canvas
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
+                    .transformable(state = transformState)
                     .graphicsLayer(
                         scaleX = scale,
                         scaleY = scale,
                         translationX = offset.x,
                         translationY = offset.y
                     )
-                /*
-                // Commented out drawing logic as requested
-                .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDragStart = { position ->
-                            val transformedPosition = (position - offset) / scale
-                            currentPath.moveTo(transformedPosition.x, transformedPosition.y)
-                            isDrawing = true
-                        },
-                        onDragEnd = {
-                            viewModel.addPath(currentPath, Color.Black, 5f)
-                            currentPath = Path()
-                            isDrawing = false
-                        },
-                        onDragCancel = {
-                            currentPath = Path()
-                            isDrawing = false
-                        }
-                    ) { change, _ ->
-                        val transformedPosition = (change.position - offset) / scale
-                        currentPath.lineTo(transformedPosition.x, transformedPosition.y)
-                        // Create a new path object to trigger recomposition
-                        currentPath = Path().apply { addPath(currentPath) }
-                    }
-                }
-                */
             ) {
                 if (animatedTriangle != null) {
-                    // --- Figure and Text Calculation Phase ---
+                    // --- Figure Calculation Phase ---
 
                     // 1. Define relative points for the triangle
                     val pA = animatedTriangle.b + animatedTriangle.a
@@ -225,52 +276,41 @@ fun WhiteboardScreen(
                     val figureTop = listOf(pA.y, pB.y, pC.y).minOrNull() ?: 0f
                     val figureRight = listOf(pA.x, pB.x, pC.x).maxOrNull() ?: 0f
                     val figureBottom = listOf(pA.y, pB.y, pC.y).maxOrNull() ?: 0f
-                    val figureCenter = Offset((figureLeft + figureRight) / 2, (figureTop + figureBottom) / 2)
 
-                    // 3. Prepare tutor message text and paint
-                    val tutorMessageData = animatedTriangle.tutorMessage
-                    val tutorMessageText = tutorMessageData.text
-                    val tutorPaint = Paint().apply {
-                        color = Color.Black.toArgb()
-                        textSize = 35f
-                        textAlign = Paint.Align.LEFT // Right-align text
-                    }
-                    val lines = tutorMessageText.split(" ").chunked(6).map { it.joinToString(" ") }
-                    val fontMetrics = tutorPaint.fontMetrics
-                    val textHeight = lines.size * tutorPaint.fontSpacing
-                    val textWidth = lines.map { tutorPaint.measureText(it) }.maxOrNull() ?: 0f
-
-                    // 4. Determine text position based on figure center
-                    val padding = 80f
-                    val textRightX: Float
-                    val topOfTextBlockY: Float
-
-                    when (tutorMessageData.position) {
-                        "above" -> {
-                            textRightX = figureCenter.x + textWidth / 2
-                            topOfTextBlockY = figureTop - padding - textHeight
-                        }
-                        // Add other positions like "below", "left", "right" if needed
-                        else -> { // Default to "above"
-                            textRightX = figureCenter.x + textWidth / 2
-                            topOfTextBlockY = figureTop - padding - textHeight
-                        }
-                    }
-
-                    // 5. Calculate the final translation offset to center everything
-                    val totalLeft = listOf(figureLeft, textRightX - textWidth).minOrNull() ?: 0f
-                    val totalTop = listOf(figureTop, topOfTextBlockY).minOrNull() ?: 0f
-                    val totalRight = listOf(figureRight, textRightX).maxOrNull() ?: 0f
-                    val totalBottom = listOf(figureBottom, topOfTextBlockY + textHeight).maxOrNull() ?: 0f
-                    val totalWidth = totalRight - totalLeft
-                    val totalHeight = totalBottom - totalTop
+                    // 3. Calculate the final translation offset to center everything
+                    val totalWidth = figureRight - figureLeft
+                    val totalHeight = figureBottom - figureTop
                     val canvasCenter = Offset(size.width / 2, size.height / 2)
-                    val centeringOffset = canvasCenter - Offset(totalLeft + totalWidth / 2, totalTop + totalHeight / 2)
+                    val centeringOffset = canvasCenter - Offset(figureLeft + totalWidth / 2, figureTop + totalHeight / 2)
 
                     // --- Drawing Phase ---
                     translate(left = centeringOffset.x, top = centeringOffset.y) {
                         // Animate drawing the triangle sides
                         val progress = animationProgress.value
+
+                        val highlightColor = Color(1f, 0.5f, 0f, pulseAlpha) // Bright Orange
+
+                        // Highlight Sides
+                        if (progress >= 3f) { // Only highlight after initial drawing
+                            animatedTriangle.highlightedSides.forEach { side ->
+                                when (side) {
+                                    "AB" -> drawLine(highlightColor, pB, pA, strokeWidth = pulseStrokeWidth, cap = StrokeCap.Round)
+                                    "BC" -> drawLine(highlightColor, pB, pC, strokeWidth = pulseStrokeWidth, cap = StrokeCap.Round)
+                                    "AC" -> drawLine(highlightColor, pA, pC, strokeWidth = pulseStrokeWidth, cap = StrokeCap.Round)
+                                }
+                            }
+                        }
+
+                        // Highlight Angle
+                        if (progress >= 3f && animatedTriangle.highlightedAngle == "B") {
+                            val angleSize = 40f
+                            val anglePath = Path().apply {
+                                moveTo(pB.x + angleSize, pB.y)
+                                lineTo(pB.x + angleSize, pB.y - angleSize)
+                                lineTo(pB.x, pB.y - angleSize)
+                            }
+                            drawPath(anglePath, highlightColor, style = Stroke(width = pulseStrokeWidth / 2f))
+                        }
 
                         // Draw points A, B, C
                         drawCircle(Color.Red, radius = 8f, center = pA)
@@ -309,7 +349,7 @@ fun WhiteboardScreen(
                             drawLine(Color.Blue, pA, pA.lerp(pC, lineProgress), strokeWidth = 5f)
                         }
 
-                        // Draw side length labels and tutor message
+                        // Draw side length labels
                         drawIntoCanvas { canvas ->
                             val nativeCanvas = canvas.nativeCanvas
                             val textPaint = Paint().apply {
@@ -331,22 +371,145 @@ fun WhiteboardScreen(
                             if (progress >= 3f) {
                                 nativeCanvas.drawText(sideLengths.ac, midAC.x + 25f, midAC.y - 15f, textPaint)
                             }
-
-                            // Draw tutor message
-                            if (progress >= 3f) {
-                                var currentY = topOfTextBlockY - fontMetrics.ascent // Get baseline of first line
-                                for (line in lines) {
-                                    nativeCanvas.drawText(line, textRightX, currentY, tutorPaint)
-                                    currentY += tutorPaint.fontSpacing
-                                }
-                            }
                         }
                     }
                 }
             }
+
+            // --- AI Tutor UI Overlay ---
+            if (animatedTriangle != null && tutorMessageText != null) {
+                TutorOverlay(
+                    tutorMessage = tutorMessageText,
+                    onChatClick = { /* TODO: Implement chat history */ },
+                    visibilityProgress = tutorMessageAnimatable.value
+                )
+            }
         }
     }
 }
+
+
+@Composable
+private fun TutorOverlay(
+    tutorMessage: String,
+    onChatClick: () -> Unit,
+    visibilityProgress: Float
+) {
+    val scale = 0.8f + 0.2f * visibilityProgress
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .graphicsLayer(
+                alpha = visibilityProgress,
+                scaleX = scale,
+                scaleY = scale,
+                transformOrigin = TransformOrigin(0f, 0f)
+            )
+    ) {
+        Column(
+            modifier = Modifier.align(Alignment.TopStart)
+        ) {
+            FloatingActionButton(
+                onClick = onChatClick,
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Psychology,
+                    contentDescription = "AI Tutor"
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Chat bubble with a triangle pointing up
+            Surface(
+                modifier = Modifier.width(300.dp),
+                shape = ChatBubbleShape(arrowHeight = 8.dp, arrowWidth = 16.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                tonalElevation = 4.dp
+            ) {
+                Text(
+                    text = tutorMessage,
+                    modifier = Modifier.padding(16.dp),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
+    }
+}
+
+
+private class ChatBubbleShape(
+    private val arrowWidth: Dp,
+    private val arrowHeight: Dp
+) : Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density
+    ): Outline {
+        val arrowWidthPx = with(density) { arrowWidth.toPx() }
+        val arrowHeightPx = with(density) { arrowHeight.toPx() }
+        val cornerRadius = with(density) { 16.dp.toPx() }
+
+        val path = Path().apply {
+            // Start from top-left, after the arrow
+            moveTo(x = 0f, y = arrowHeightPx)
+
+            // Top-left corner
+            arcTo(
+                rect = Rect(left = 0f, top = arrowHeightPx, right = cornerRadius, bottom = arrowHeightPx + cornerRadius),
+                startAngleDegrees = 180f,
+                sweepAngleDegrees = 90f,
+                forceMoveTo = false
+            )
+            // Top edge
+            lineTo(x = size.width - cornerRadius, y = arrowHeightPx)
+
+            // Top-right corner
+            arcTo(
+                rect = Rect(left = size.width - cornerRadius, top = arrowHeightPx, right = size.width, bottom = arrowHeightPx + cornerRadius),
+                startAngleDegrees = 270f,
+                sweepAngleDegrees = 90f,
+                forceMoveTo = false
+            )
+            // Right edge
+            lineTo(x = size.width, y = size.height - cornerRadius)
+
+            // Bottom-right corner
+            arcTo(
+                rect = Rect(left = size.width - cornerRadius, top = size.height - cornerRadius, right = size.width, bottom = size.height),
+                startAngleDegrees = 0f,
+                sweepAngleDegrees = 90f,
+                forceMoveTo = false
+            )
+            // Bottom edge
+            lineTo(x = cornerRadius, y = size.height)
+
+            // Bottom-left corner
+            arcTo(
+                rect = Rect(left = 0f, top = size.height - cornerRadius, right = cornerRadius, bottom = size.height),
+                startAngleDegrees = 90f,
+                sweepAngleDegrees = 90f,
+                forceMoveTo = false
+            )
+            // Left edge
+            lineTo(x = 0f, y = arrowHeightPx + cornerRadius)
+
+
+            // Arrow
+            val arrowStartX = with(density) { 24.dp.toPx() }
+            moveTo(x = arrowStartX, y = arrowHeightPx)
+            lineTo(x = arrowStartX + (arrowWidthPx / 2), y = 0f) // Point up
+            lineTo(x = arrowStartX + arrowWidthPx, y = arrowHeightPx)
+            close()
+        }
+        return Outline.Generic(path)
+    }
+}
+
 
 @Composable
 private fun WhiteboardBottomBar(
