@@ -21,6 +21,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 
+enum class WhiteboardFlowState {
+    INITIAL,
+    INTERPRETING,
+    AWAITING_CONFIRMATION,
+    SOCRATIC_TUTORING
+}
+
 @Serializable
 data class SideLengths(
     @SerialName("AC") val ac: String,
@@ -57,7 +64,6 @@ sealed class WhiteboardItem {
         val b: Offset,
         val c: Offset,
         val sideLengths: SideLengths,
-        val tutorMessage: String,
         val highlightedSides: List<String> = emptyList(),
         val highlightedAngle: String? = null
     ) : WhiteboardItem()
@@ -65,7 +71,11 @@ sealed class WhiteboardItem {
 
 data class WhiteboardState(
     val items: List<WhiteboardItem> = emptyList(),
-    val textInput: String = ""
+    val textInput: String = "",
+    val flowState: WhiteboardFlowState = WhiteboardFlowState.INITIAL,
+    val initialProblemStatement: String = "",
+    val tutorMessage: String? = null,
+    val showConfirmationFailureMessage: Boolean = false
 )
 
 val systemPromptInterpret = """
@@ -202,8 +212,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                                     a = pointA,
                                     b = pointB,
                                     c = pointC,
-                                    sideLengths = sideLengths,
-                                    tutorMessage = response.tutorMessage
+                                    sideLengths = sideLengths
                                 )
                             }
                         }
@@ -225,13 +234,24 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                     }
                 }
 
-                currentTriangle = currentTriangle?.copy(tutorMessage = response.tutorMessage)
+                val newFlowState = if (currentState.flowState == WhiteboardFlowState.INTERPRETING) {
+                    WhiteboardFlowState.AWAITING_CONFIRMATION
+                } else {
+                    currentState.flowState
+                }
 
                 if (currentTriangle != null) {
                     val otherItems = currentState.items.filterNot { it is WhiteboardItem.AnimatedTriangle }
-                    currentState.copy(items = otherItems + currentTriangle!!)
+                    currentState.copy(
+                        items = otherItems + currentTriangle!!,
+                        tutorMessage = response.tutorMessage,
+                        flowState = newFlowState
+                    )
                 } else {
-                    currentState
+                    currentState.copy(
+                        tutorMessage = response.tutorMessage,
+                        flowState = newFlowState
+                    )
                 }
             }
         } catch (e: Exception) {
@@ -241,21 +261,40 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
 
 
     fun onTextInputChanged(newText: String) {
-        _uiState.update { it.copy(textInput = newText) }
+        _uiState.update { it.copy(textInput = newText, showConfirmationFailureMessage = false) }
     }
 
     fun onSendText() {
         val currentText = _uiState.value.textInput
         if (currentText.isBlank()) return
 
-        _uiState.update { it.copy(textInput = "") }
+        val currentState = _uiState.value
+        val (systemPrompt, newFlowState, newProblemStatement) = when (currentState.flowState) {
+            WhiteboardFlowState.INITIAL -> {
+                Triple(systemPromptInterpret, WhiteboardFlowState.INTERPRETING, currentText)
+            }
+            WhiteboardFlowState.SOCRATIC_TUTORING -> {
+                Triple(systemPromptSocratic, WhiteboardFlowState.SOCRATIC_TUTORING, currentState.initialProblemStatement)
+            }
+            else -> {
+                Log.w(TAG, "onSendText called in unexpected state: ${currentState.flowState}")
+                return
+            }
+        }
+
+        _uiState.update { it.copy(
+            textInput = "",
+            flowState = newFlowState,
+            initialProblemStatement = newProblemStatement,
+            showConfirmationFailureMessage = false
+        )}
 
         viewModelScope.launch {
-            val placeholderPrompt = "" // Using a placeholder as requested
+            val fullPrompt = "$systemPrompt\n\nHere is the student's message:\n$currentText"
             var fullResponse = ""
 
             LlmHelper.runInference(
-                input = systemPromptInterpret,
+                input = fullPrompt,
                 resultListener = { partialResult, done ->
                     fullResponse += partialResult
                     if (done) {
@@ -264,6 +303,44 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                         }
                     }
                 }
+            )
+        }
+    }
+
+    fun onConfirmationAccept() {
+        _uiState.update {
+            it.copy(
+                flowState = WhiteboardFlowState.SOCRATIC_TUTORING,
+                tutorMessage = null // Clear interpretation message
+            )
+        }
+
+        // Kick off the Socratic dialogue
+        viewModelScope.launch {
+            val socraticPrompt = "$systemPromptSocratic\n\nThe student has confirmed this interpretation of the problem: \"${_uiState.value.initialProblemStatement}\". Now, begin the conversation with a guiding question."
+            var fullResponse = ""
+            LlmHelper.runInference(
+                input = socraticPrompt,
+                resultListener = { partialResult, done ->
+                    fullResponse += partialResult
+                    if (done) {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            processLlmResponse(fullResponse)
+                        }
+                    }
+                }
+            )
+        }
+    }
+
+    fun onConfirmationReject() {
+        _uiState.update {
+            it.copy(
+                flowState = WhiteboardFlowState.INITIAL,
+                items = emptyList(),
+                tutorMessage = null,
+                initialProblemStatement = "",
+                showConfirmationFailureMessage = true
             )
         }
     }

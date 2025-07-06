@@ -13,6 +13,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,7 +25,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.AutoMirrored
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -121,9 +127,90 @@ fun WhiteboardScreen(
     )
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var currentPath by remember { mutableStateOf(Path()) }
-    var isDrawing by remember { mutableStateOf(false) }
 
+    when (uiState.flowState) {
+        WhiteboardFlowState.INITIAL -> {
+            InitialWhiteboardScreen(
+                text = uiState.textInput,
+                onTextChange = viewModel::onTextInputChanged,
+                onSendClick = viewModel::onSendText,
+                onCameraClick = { /* TODO */ },
+                showFailureMessage = uiState.showConfirmationFailureMessage
+            )
+        }
+        else -> {
+            MainWhiteboardContent(
+                uiState = uiState,
+                viewModel = viewModel
+            )
+        }
+    }
+}
+
+@Composable
+fun InitialWhiteboardScreen(
+    text: String,
+    onTextChange: (String) -> Unit,
+    onSendClick: () -> Unit,
+    onCameraClick: () -> Unit,
+    showFailureMessage: Boolean
+) {
+    Surface(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (showFailureMessage) {
+                Text(
+                    text = "Por favor, vuelve a intentarlo escribiendo el problema en texto.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(16.dp))
+            }
+
+            OutlinedTextField(
+                value = text,
+                onValueChange = onTextChange,
+                modifier = Modifier.fillMaxWidth(0.9f),
+                placeholder = { Text("Describe tu problema de matemáticas...") },
+                maxLines = 10,
+                textStyle = MaterialTheme.typography.titleLarge
+            )
+            Spacer(Modifier.height(16.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                FloatingActionButton(
+                    onClick = onCameraClick,
+                    containerColor = Color.Black,
+                    contentColor = Color.White,
+                    modifier = Modifier.width(64.dp).height(64.dp)
+                ) {
+                    Icon(Icons.Default.PhotoCamera, contentDescription = "Take or select a picture")
+                }
+                FloatingActionButton(
+                    onClick = onSendClick,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.width(64.dp).height(64.dp)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send text")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MainWhiteboardContent(
+    uiState: WhiteboardState,
+    viewModel: WhiteboardViewModel
+) {
     var scale by remember { mutableStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
 
@@ -184,23 +271,9 @@ fun WhiteboardScreen(
     }
     // --- End of TTS Setup ---
 
-    /*
-    // Trigger JSON processing and animation
-    LaunchedEffect(Unit) {
-        Log.d(TAG, "Processing initial LLM response.")
-        viewModel.processLlmResponse(mockJsonResponse)
-
-        Log.d(TAG, "Waiting 15 seconds to simulate user confirmation.")
-        kotlinx.coroutines.delay(15000)
-
-        Log.d(TAG, "Processing second LLM response after delay.")
-        viewModel.processLlmResponse(mockJsonResponse2)
-    }
-    */
-
     // Find the triangle to animate from the state
     val animatedTriangle = uiState.items.filterIsInstance<WhiteboardItem.AnimatedTriangle>().firstOrNull()
-    val tutorMessageText = animatedTriangle?.tutorMessage
+    val tutorMessageText = uiState.tutorMessage
 
     LaunchedEffect(animatedTriangle) {
         if (animatedTriangle != null) {
@@ -208,7 +281,7 @@ fun WhiteboardScreen(
             animationProgress.snapTo(0f) // Reset progress for new animations
             animationProgress.animateTo(
                 targetValue = 3f, // 3 segments: AB, BC, AC
-                animationSpec = tween(durationMillis = 6000, delayMillis = 500) // 2s per segment, 0.5s delay
+                animationSpec = tween(durationMillis = 3000, delayMillis = 500) // 1s per segment, 0.5s delay
             )
         }
     }
@@ -217,7 +290,7 @@ fun WhiteboardScreen(
     LaunchedEffect(tutorMessageText) {
         if (tutorMessageText != null) {
             tutorMessageAnimatable.snapTo(0f)
-            kotlinx.coroutines.delay(4000) // Start animation partway through the main drawing
+            kotlinx.coroutines.delay(2000) // Start animation partway through the main drawing
             tutorMessageAnimatable.animateTo(
                 targetValue = 1f,
                 animationSpec = tween(durationMillis = 1500)
@@ -229,7 +302,7 @@ fun WhiteboardScreen(
     LaunchedEffect(tutorMessageText, ttsInitialized) {
         if (tutorMessageText != null && ttsInitialized) {
             // Wait for visual animation to finish before speaking
-            kotlinx.coroutines.delay(6500)
+            kotlinx.coroutines.delay(3500)
             Log.d(TAG, "Triggering TTS speech for: '$tutorMessageText'")
             tts?.speak(tutorMessageText, TextToSpeech.QUEUE_FLUSH, null, "tutor_message")
         }
@@ -237,12 +310,24 @@ fun WhiteboardScreen(
 
     Scaffold(
         bottomBar = {
-            WhiteboardBottomBar(
-                text = uiState.textInput,
-                onTextChange = viewModel::onTextInputChanged,
-                onSendClick = viewModel::onSendText,
-                onImageClick = { /* TODO: Implement image picking */ }
-            )
+            when (uiState.flowState) {
+                WhiteboardFlowState.SOCRATIC_TUTORING -> {
+                    WhiteboardBottomBar(
+                        text = uiState.textInput,
+                        onTextChange = viewModel::onTextInputChanged,
+                        onSendClick = viewModel::onSendText,
+                        onImageClick = { /* TODO: Implement image picking */ }
+                    )
+                }
+                WhiteboardFlowState.AWAITING_CONFIRMATION, WhiteboardFlowState.INTERPRETING -> {
+                    ConfirmationBar(
+                        onAccept = viewModel::onConfirmationAccept,
+                        onReject = viewModel::onConfirmationReject,
+                        isWaiting = uiState.flowState == WhiteboardFlowState.INTERPRETING
+                    )
+                }
+                else -> { /* No bottom bar in other states */ }
+            }
         }
     ) { paddingValues ->
         Box(
@@ -377,23 +462,24 @@ fun WhiteboardScreen(
             }
 
             // --- AI Tutor UI Overlay ---
-            if (animatedTriangle != null && tutorMessageText != null) {
+            if (tutorMessageText != null) {
                 TutorOverlay(
                     tutorMessage = tutorMessageText,
                     onChatClick = { /* TODO: Implement chat history */ },
-                    visibilityProgress = tutorMessageAnimatable.value
+                    visibilityProgress = tutorMessageAnimatable.value,
+                    showIcon = uiState.flowState == WhiteboardFlowState.SOCRATIC_TUTORING
                 )
             }
         }
     }
 }
 
-
 @Composable
 private fun TutorOverlay(
     tutorMessage: String,
     onChatClick: () -> Unit,
-    visibilityProgress: Float
+    visibilityProgress: Float,
+    showIcon: Boolean
 ) {
     val scale = 0.8f + 0.2f * visibilityProgress
     Box(
@@ -410,18 +496,20 @@ private fun TutorOverlay(
         Column(
             modifier = Modifier.align(Alignment.TopStart)
         ) {
-            FloatingActionButton(
-                onClick = onChatClick,
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Psychology,
-                    contentDescription = "AI Tutor"
-                )
-            }
+            if (showIcon) {
+                FloatingActionButton(
+                    onClick = onChatClick,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Psychology,
+                        contentDescription = "AI Tutor"
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
             // Chat bubble with a triangle pointing up
             Surface(
@@ -439,7 +527,6 @@ private fun TutorOverlay(
         }
     }
 }
-
 
 private class ChatBubbleShape(
     private val arrowWidth: Dp,
@@ -510,6 +597,53 @@ private class ChatBubbleShape(
     }
 }
 
+@Composable
+private fun ConfirmationBar(
+    onAccept: () -> Unit,
+    onReject: () -> Unit,
+    isWaiting: Boolean
+) {
+    Surface(
+        tonalElevation = 3.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onReject,
+                enabled = !isWaiting,
+                colors = IconButtonDefaults.iconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
+                modifier = Modifier.width(80.dp).height(80.dp)
+            ) {
+                Icon(Icons.Default.Close, "Reject Interpretation", modifier = Modifier.fillMaxSize(0.6f))
+            }
+            Spacer(modifier = Modifier.width(32.dp))
+            IconButton(
+                onClick = onAccept,
+                enabled = !isWaiting,
+                colors = IconButtonDefaults.iconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
+                modifier = Modifier.width(80.dp).height(80.dp)
+            ) {
+                Icon(Icons.Default.Check, "Accept Interpretation", modifier = Modifier.fillMaxSize(0.6f))
+            }
+        }
+    }
+}
 
 @Composable
 private fun WhiteboardBottomBar(
