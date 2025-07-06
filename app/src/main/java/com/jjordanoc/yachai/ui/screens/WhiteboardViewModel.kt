@@ -34,6 +34,11 @@ import com.jjordanoc.yachai.data.Models
 import com.jjordanoc.yachai.data.getLocalPath
 import com.jjordanoc.yachai.utils.SettingsManager
 import com.jjordanoc.yachai.data.ModelConfig
+import com.google.mediapipe.tasks.genai.llminference.LlmInference
+import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
+import com.google.mediapipe.tasks.genai.llminference.GraphOptions
+import com.google.mediapipe.framework.image.BitmapImageBuilder
+import android.graphics.Bitmap
 
 
 enum class WhiteboardFlowState {
@@ -115,7 +120,8 @@ data class WhiteboardState(
     val tutorMessage: String? = null,
     val hint: String? = null,
     val showConfirmationFailureMessage: Boolean = false,
-    val selectedImageUri: Uri? = null
+    val selectedImageUri: Uri? = null,
+    val isModelLoading: Boolean = true
 )
 
 val systemPromptInterpret = """
@@ -228,24 +234,88 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
 
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
     private val viewModelScope = CoroutineScope(Dispatchers.IO)
+    private var llmInference: LlmInference? = null
+    private var session: LlmInferenceSession? = null
 
 
     init {
         Log.d(TAG, "WhiteboardViewModel initialized.")
-        val context = getApplication<Application>().applicationContext
-        val settingsManager = SettingsManager(context)
-        val model = Models.GEMMA_3N_E2B_VISION
+        viewModelScope.launch {
+            val context = getApplication<Application>().applicationContext
+            val settingsManager = SettingsManager(context)
+            val model = Models.GEMMA_3N_E2B_VISION
 
-        val modelConfig = ModelConfig(
-            modelPath = model.getLocalPath(context),
-            useGpu = settingsManager.isGpuEnabled()
-        )
+            val modelConfig = ModelConfig(
+                modelPath = model.getLocalPath(context),
+                useGpu = settingsManager.isGpuEnabled()
+            )
 
-        LlmHelper.switchDataSource(
-            type = LlmHelper.DataSourceType.MEDIAPIPE,
-            context = context,
-            modelConfig = modelConfig
-        )
+            try {
+                val options = LlmInference.LlmInferenceOptions.builder()
+                    .setModelPath(modelConfig.modelPath)
+                    .setMaxTokens(modelConfig.maxTokens)
+                    .setPreferredBackend(
+//                        if (modelConfig.useGpu) LlmInference.Backend.GPU
+//                        else LlmInference.Backend.CPU
+                        LlmInference.Backend.CPU
+                    )
+                    .setMaxNumImages(if (modelConfig.supportImage) 1 else 0)
+                    .build()
+                llmInference = LlmInference.createFromOptions(context, options)
+                Log.d(TAG, "Intialized model with $modelConfig")
+                resetSession(modelConfig)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to initialize model: ${e.localizedMessage}")
+            } finally {
+                _uiState.update { it.copy(isModelLoading = false) }
+            }
+        }
+    }
+
+    private fun resetSession(modelConfig: ModelConfig) {
+        llmInference?.let { engine ->
+            try {
+                session?.close()
+                val sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
+                    .setTopK(modelConfig.topK)
+                    .setTopP(modelConfig.topP)
+                    .setTemperature(modelConfig.temperature)
+                    .setGraphOptions(
+                        GraphOptions.builder()
+                            .setEnableVisionModality(modelConfig.supportImage)
+                            .build()
+                    )
+                    .build()
+                session = LlmInferenceSession.createFromOptions(engine, sessionOptions)
+                Log.d(TAG, "Session reset successful")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to reset session", e)
+            }
+        }
+    }
+
+    private fun runInference(input: String, images: List<Bitmap> = emptyList(), resultListener: (String, Boolean) -> Unit) {
+        val currentSession = session
+        if (currentSession == null) {
+            resultListener("Error: Model is not yet initialized or failed to load. Please wait or try again.", true)
+            return
+        }
+
+        try {
+            if (input.trim().isNotEmpty()) {
+                currentSession.addQueryChunk(input)
+            }
+
+            for (image in images) {
+                currentSession.addImage(BitmapImageBuilder(image).build())
+            }
+
+            currentSession.generateResponseAsync(resultListener)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Inference failed: ${e.message}", e)
+            resultListener("Error: ${e.message ?: "Inference failed"}", true)
+        }
     }
 
     fun processLlmResponse(jsonString: String) {
@@ -409,11 +479,12 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                 }
             } ?: emptyList()
 
-            LlmHelper.runInference(
+            runInference(
                 input = fullPrompt,
                 images = bitmaps,
                 resultListener = { partialResult, done ->
                     fullResponse += partialResult
+                    Log.d(TAG, "Partial result: $fullResponse")
                     if (done) {
                         Log.d(TAG, "LLM inference finished. Full response received.")
                         CoroutineScope(Dispatchers.Main).launch {
@@ -444,7 +515,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
             val socraticPrompt = systemPromptSocratic("Tutor found problem statement: $problemStatementFromTutor") + "\n\nNow, begin the conversation with a guiding question."
             Log.d(TAG, "Kicking off Socratic dialogue with prompt (first 200 chars): ${socraticPrompt.take(200)}")
             var fullResponse = ""
-            LlmHelper.runInference(
+            runInference(
                 input = socraticPrompt,
                 resultListener = { partialResult, done ->
                     fullResponse += partialResult

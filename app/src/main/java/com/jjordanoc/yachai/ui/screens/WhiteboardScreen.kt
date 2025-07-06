@@ -97,6 +97,8 @@ import com.canhub.cropper.CropImageContract
 import com.canhub.cropper.CropImageContractOptions
 import com.canhub.cropper.CropImageOptions
 import com.canhub.cropper.CropImageView
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.material3.CircularProgressIndicator
 
 
 
@@ -119,24 +121,64 @@ fun WhiteboardScreen(
 
     Log.d(TAG, "WhiteboardScreen recomposing with flowState: ${uiState.flowState}")
 
-    when (uiState.flowState) {
-        WhiteboardFlowState.INITIAL -> {
-            InitialWhiteboardScreen(
-                text = uiState.textInput,
-                imageUri = uiState.selectedImageUri,
-                onTextChange = viewModel::onTextInputChanged,
-                onSendClick = {
-                    Log.d(TAG, "InitialWhiteboardScreen: Send button clicked.")
-                    viewModel.onSendText()
-                },
-                onImageSelected = viewModel::onImageSelected,
-                showFailureMessage = uiState.showConfirmationFailureMessage
-            )
+    if (uiState.isModelLoading) {
+        LoadingScreen()
+    } else {
+        when (uiState.flowState) {
+            WhiteboardFlowState.INITIAL -> {
+                InitialWhiteboardScreen(
+                    text = uiState.textInput,
+                    imageUri = uiState.selectedImageUri,
+                    onTextChange = viewModel::onTextInputChanged,
+                    onSendClick = {
+                        Log.d(TAG, "InitialWhiteboardScreen: Send button clicked.")
+                        viewModel.onSendText()
+                    },
+                    onImageSelected = viewModel::onImageSelected,
+                    showFailureMessage = uiState.showConfirmationFailureMessage
+                )
+            }
+            else -> {
+                MainWhiteboardContent(
+                    uiState = uiState,
+                    viewModel = viewModel
+                )
+            }
         }
-        else -> {
-            MainWhiteboardContent(
-                uiState = uiState,
-                viewModel = viewModel
+    }
+}
+
+@Composable
+fun LoadingScreen() {
+    val infiniteTransition = rememberInfiniteTransition(label = "loading")
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing)
+        ),
+        label = "rotation"
+    )
+
+    Surface(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .height(64.dp)
+                    .graphicsLayer { rotationZ = rotation },
+                strokeWidth = 6.dp
+            )
+            Spacer(Modifier.height(24.dp))
+            Text(
+                text = "Preparando la pizarra y repasando fórmulas…",
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center
             )
         }
     }

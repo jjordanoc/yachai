@@ -2,6 +2,7 @@ package com.jjordanoc.yachai.ui.screens
 
 import android.content.Context
 import android.graphics.Bitmap
+import com.jjordanoc.yachai.data.ModelConfig
 
 object LlmHelper {
     private var activeDataSource: LlmDataSource? = null

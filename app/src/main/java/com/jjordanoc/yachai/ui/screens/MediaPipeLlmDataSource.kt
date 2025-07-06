@@ -7,22 +7,13 @@ import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.genai.llminference.GraphOptions
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
+import com.jjordanoc.yachai.data.ModelConfig
 import com.jjordanoc.yachai.utils.TAG
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 private const val LLM_TAG = "YachAIMediaPipeDataSource"
-
-data class ModelConfig(
-    val modelPath: String,
-    val maxTokens: Int = 480,
-    val topK: Int = 15,
-    val topP: Float = 0.9f,
-    val temperature: Float = 0.8f,
-    val supportImage: Boolean = true,
-    val useGpu: Boolean = true
-)
 
 class MediaPipeLlmDataSource(
     private val context: Context,
