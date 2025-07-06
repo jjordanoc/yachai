@@ -93,40 +93,12 @@ import androidx.core.content.ContextCompat
 import android.Manifest
 import android.content.pm.PackageManager
 import kotlinx.coroutines.launch
+import com.canhub.cropper.CropImageContract
+import com.canhub.cropper.CropImageContractOptions
+import com.canhub.cropper.CropImageOptions
+import com.canhub.cropper.CropImageView
 
-/*
-val mockJsonResponse = """
-{
-  "tutor_message": "Veo un triángulo rectángulo ABC con ángulo recto en el punto B. La hipotenusa AC mide 13 unidades y el lado AB mide 5 unidades. ¿Esa es la situación que estás tratando de resolver?",
-  "hint": "Recuerda que la hipotenusa es el lado más largo, opuesto al ángulo recto.",
-  "animation": [
-    {
-      "command": "drawRightTriangle",
-      "args": {
-        "sideLengths": {
-          "AC": "13",
-          "AB": "5",
-          "BC": "x"
-        }
-      }
-    }
-  ]
-}
-"""
 
-val mockJsonResponse2 = """
-{
-  "tutor_message": "Muy bien. Sabemos que AB mide 5 y AC mide 13. El ángulo en B es recto. ¿Qué relación podríamos usar para encontrar la longitud del lado BC?",
-  "hint": "Piensa en la relación que existe entre los lados de un triángulo rectángulo.",
-  "animation": [
-    { "command": "highlightAngle", "args": { "point": "B", "type": "right" } },
-    { "command": "highlightSide", "args": { "segment": "AB" } },
-    { "command": "highlightSide", "args": { "segment": "AC" } },
-    { "command": "highlightSide", "args": { "segment": "BC", "label": "x" } }
-  ]
-}
-"""
-*/
 
 private fun Offset.lerp(other: Offset, fraction: Float): Offset {
     return Offset(
@@ -181,57 +153,28 @@ fun InitialWhiteboardScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var tempCameraImageUri by remember { mutableStateOf<Uri?>(null) }
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture(),
-        onResult = { success ->
-            if (success) {
-                Log.d(TAG, "Camera result success. URI: $tempCameraImageUri")
-                onImageSelected(tempCameraImageUri)
+    val cropImageLauncher = rememberLauncherForActivityResult(
+        contract = CropImageContract(),
+        onResult = { result ->
+            if (result.isSuccessful) {
+                onImageSelected(result.uriContent)
             } else {
-                Log.d(TAG, "Camera capture failed or was cancelled.")
+                val exception = result.error
+                Log.e(TAG, "Image cropping failed", exception)
             }
         }
     )
-    fun launchCamera() {
-        val file = File(context.cacheDir, "temp_image_${System.currentTimeMillis()}.jpg")
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.provider",
-            file
+
+    fun launchImageCropper() {
+        cropImageLauncher.launch(
+            CropImageContractOptions(
+                uri = null,
+                cropImageOptions = CropImageOptions(
+                    imageSourceIncludeGallery = true,
+                    imageSourceIncludeCamera = true
+                )
+            )
         )
-        tempCameraImageUri = uri
-        cameraLauncher.launch(uri)
-    }
-
-    // --- Permission Handling ---
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                Log.d(TAG, "Camera permission granted.")
-                // Permission was granted, launch the camera
-                launchCamera()
-            } else {
-                Log.d(TAG, "Camera permission denied.")
-                // Handle permission denial (e.g., show a snackbar or dialog)
-            }
-        }
-    )
-
-    // --- Image Picker Logic ---
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri ->
-            Log.d(TAG, "Image picker result: $uri")
-            onImageSelected(uri)
-        }
-    )
-
-    fun launchImageChooser() {
-        // We can't directly combine camera into the modern Photo Picker, so we'll just launch it for now.
-        // A custom dialog could be used to present both options.
-        imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
 
     Surface(modifier = Modifier.fillMaxSize()) {
@@ -286,34 +229,14 @@ fun InitialWhiteboardScreen(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Button to launch image chooser (gallery)
+                // Button to launch image chooser & cropper
                 FloatingActionButton(
-                    onClick = { launchImageChooser() },
+                    onClick = { launchImageCropper() },
                     containerColor = Color.Black,
                     contentColor = Color.White,
                     modifier = Modifier.width(64.dp).height(64.dp)
                 ) {
-                    Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Select a picture from gallery")
-                }
-                // Button to launch camera
-                FloatingActionButton(
-                    onClick = {
-                        when (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)) {
-                            PackageManager.PERMISSION_GRANTED -> {
-                                Log.d(TAG, "Camera permission already granted. Launching camera.")
-                                launchCamera()
-                            }
-                            else -> {
-                                Log.d(TAG, "Camera permission not granted. Requesting permission.")
-                                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                            }
-                        }
-                    },
-                    containerColor = Color.Black,
-                    contentColor = Color.White,
-                    modifier = Modifier.width(64.dp).height(64.dp)
-                ) {
-                    Icon(Icons.Default.PhotoCamera, contentDescription = "Take a picture")
+                    Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Select an image to crop")
                 }
 
                 val sendEnabled = text.isNotBlank() || imageUri != null
@@ -790,10 +713,29 @@ private fun WhiteboardBottomBar(
     onSendClick: () -> Unit,
     onImageSelected: (Uri?) -> Unit
 ) {
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = onImageSelected
+    val cropImageLauncher = rememberLauncherForActivityResult(
+        contract = CropImageContract(),
+        onResult = { result ->
+            if (result.isSuccessful) {
+                onImageSelected(result.uriContent)
+            } else {
+                val exception = result.error
+                Log.e(TAG, "Image cropping failed", exception)
+            }
+        }
     )
+
+    fun launchImageCropper() {
+        cropImageLauncher.launch(
+            CropImageContractOptions(
+                uri = null,
+                cropImageOptions = CropImageOptions(
+                    imageSourceIncludeGallery = true,
+                    imageSourceIncludeCamera = true
+                )
+            )
+        )
+    }
 
     Surface(
         tonalElevation = 3.dp,
@@ -810,7 +752,7 @@ private fun WhiteboardBottomBar(
                             .clip(RoundedCornerShape(8.dp))
                             .clickable {
                                 // Allow re-picking image
-                                imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                launchImageCropper()
                             }
                     )
                     IconButton(
@@ -835,7 +777,7 @@ private fun WhiteboardBottomBar(
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
                     onClick = {
-                        imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        launchImageCropper()
                     },
                     colors = IconButtonDefaults.iconButtonColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,

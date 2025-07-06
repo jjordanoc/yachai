@@ -31,7 +31,7 @@
         </activity>
         <activity
             android:name="com.canhub.cropper.CropImageActivity"
-            android:theme="@style/Theme.AppCompat.DayNight.DarkActionBar" />
+            android:theme="@style/Base.Theme.AppCompat" />
     </application>
 
 </manifest>
