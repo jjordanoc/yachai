@@ -181,6 +181,28 @@ fun InitialWhiteboardScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var tempCameraImageUri by remember { mutableStateOf<Uri?>(null) }
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+        onResult = { success ->
+            if (success) {
+                Log.d(TAG, "Camera result success. URI: $tempCameraImageUri")
+                onImageSelected(tempCameraImageUri)
+            } else {
+                Log.d(TAG, "Camera capture failed or was cancelled.")
+            }
+        }
+    )
+    fun launchCamera() {
+        val file = File(context.cacheDir, "temp_image_${System.currentTimeMillis()}.jpg")
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.provider",
+            file
+        )
+        tempCameraImageUri = uri
+        cameraLauncher.launch(uri)
+    }
 
     // --- Permission Handling ---
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
@@ -198,8 +220,6 @@ fun InitialWhiteboardScreen(
     )
 
     // --- Image Picker Logic ---
-    var tempCameraImageUri by remember { mutableStateOf<Uri?>(null) }
-
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri ->
@@ -207,29 +227,6 @@ fun InitialWhiteboardScreen(
             onImageSelected(uri)
         }
     )
-
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture(),
-        onResult = { success ->
-            if (success) {
-                Log.d(TAG, "Camera result success. URI: $tempCameraImageUri")
-                onImageSelected(tempCameraImageUri)
-            } else {
-                Log.d(TAG, "Camera capture failed or was cancelled.")
-            }
-        }
-    )
-
-    fun launchCamera() {
-        val file = File(context.cacheDir, "temp_image_${System.currentTimeMillis()}.jpg")
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.provider",
-            file
-        )
-        tempCameraImageUri = uri
-        cameraLauncher.launch(uri)
-    }
 
     fun launchImageChooser() {
         // We can't directly combine camera into the modern Photo Picker, so we'll just launch it for now.
@@ -506,7 +503,7 @@ fun MainWhiteboardContent(
                     val canvasCenter = Offset(size.width / 2, size.height / 2)
                     val centeringOffset = canvasCenter - Offset(figureLeft + totalWidth / 2, figureTop + totalHeight / 2)
 
-                    Log.d(TAG, "Canvas: Centering triangle with offset: $centeringOffset")
+//                    Log.d(TAG, "Canvas: Centering triangle with offset: $centeringOffset")
 
                     // --- Drawing Phase ---
                     translate(left = centeringOffset.x, top = centeringOffset.y) {
@@ -586,15 +583,15 @@ fun MainWhiteboardContent(
                             val sideLengths = animatedTriangle.sideLengths
                             val midAB = pB.lerp(pA, 0.5f)
                             if (progress >= 1f) {
-                                nativeCanvas.drawText(sideLengths.ab, midAB.x - 30f, midAB.y, textPaint)
+                                nativeCanvas.drawText(sideLengths.ab ?: "", midAB.x - 30f, midAB.y, textPaint)
                             }
                             val midBC = pB.lerp(pC, 0.5f)
                             if (progress >= 2f) {
-                                nativeCanvas.drawText(sideLengths.bc, midBC.x, midBC.y + 40f, textPaint)
+                                nativeCanvas.drawText(sideLengths.bc ?: "", midBC.x, midBC.y + 40f, textPaint)
                             }
                             val midAC = pA.lerp(pC, 0.5f)
                             if (progress >= 3f) {
-                                nativeCanvas.drawText(sideLengths.ac, midAC.x + 25f, midAC.y - 15f, textPaint)
+                                nativeCanvas.drawText(sideLengths.ac ?: "", midAC.x + 25f, midAC.y - 15f, textPaint)
                             }
                         }
                     }

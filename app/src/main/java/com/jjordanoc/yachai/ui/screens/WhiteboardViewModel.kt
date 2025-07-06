@@ -20,6 +20,16 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import android.net.Uri
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 
 
 enum class WhiteboardFlowState {
@@ -29,17 +39,40 @@ enum class WhiteboardFlowState {
     SOCRATIC_TUTORING
 }
 
+object LenientStringSerializer : KSerializer<String?> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("LenientString", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: String?) {
+        if (value == null) encoder.encodeNull() else encoder.encodeString(value)
+    }
+
+    override fun deserialize(decoder: Decoder): String? {
+        val jsonInput = decoder as? JsonDecoder ?: return decoder.decodeString()
+        val element = jsonInput.decodeJsonElement()
+
+        if (element is JsonNull) {
+            return null
+        }
+
+        if (element is JsonPrimitive) {
+            return element.content
+        }
+
+        return element.toString()
+    }
+}
+
 @Serializable
 data class SideLengths(
-    @SerialName("AC") val ac: String,
-    @SerialName("AB") val ab: String,
-    @SerialName("BC") val bc: String
+    @SerialName("AC") @Serializable(with = LenientStringSerializer::class) val ac: String?,
+    @SerialName("AB") @Serializable(with = LenientStringSerializer::class) val ab: String?,
+    @SerialName("BC") @Serializable(with = LenientStringSerializer::class) val bc: String?
 )
 
 @Serializable
 data class AnimationArgs(
     val sideLengths: SideLengths? = null,
-    val point: String? = null,
+    val point: String?  = null,
     val type: String? = null,
     val segment: String? = null,
     val label: String? = null
@@ -53,9 +86,9 @@ data class AnimationCommand(
 
 @Serializable
 data class LlmResponse(
-    @SerialName("tutor_message") val tutorMessage: String,
-    val hint: String,
-    val animation: List<AnimationCommand>
+    @SerialName("tutor_message") val tutorMessage: String?,
+    val hint: String?,
+    val animation: List<AnimationCommand> = emptyList()
 )
 
 sealed class WhiteboardItem {
@@ -178,7 +211,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
     private val _uiState = MutableStateFlow(WhiteboardState())
     val uiState: StateFlow<WhiteboardState> = _uiState.asStateFlow()
 
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
     private val viewModelScope = CoroutineScope(Dispatchers.IO)
 
 
@@ -201,8 +234,8 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                         "drawRightTriangle" -> {
                             command.args.sideLengths?.let { sideLengths ->
                                 Log.d(TAG, "drawRightTriangle command found with args: ${command.args}")
-                                val sideAB = sideLengths.ab.toFloatOrNull() ?: 5f
-                                val sideAC = sideLengths.ac.toFloatOrNull() ?: 13f
+                                val sideAB = sideLengths.ab?.toFloatOrNull() ?: 5f
+                                val sideAC = sideLengths.ac?.toFloatOrNull() ?: 13f
                                 val sideBC = sqrt(sideAC * sideAC - sideAB * sideAB)
 
                                 val drawScale = 30f
