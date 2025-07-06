@@ -19,6 +19,7 @@ import kotlin.math.sqrt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import android.net.Uri
 
 
 enum class WhiteboardFlowState {
@@ -75,7 +76,8 @@ data class WhiteboardState(
     val flowState: WhiteboardFlowState = WhiteboardFlowState.INITIAL,
     val initialProblemStatement: String = "",
     val tutorMessage: String? = null,
-    val showConfirmationFailureMessage: Boolean = false
+    val showConfirmationFailureMessage: Boolean = false,
+    val selectedImageUri: Uri? = null
 )
 
 val systemPromptInterpret = """
@@ -181,6 +183,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
 
 
     init {
+        Log.d(TAG, "WhiteboardViewModel initialized.")
         LlmHelper.switchDataSource(LlmHelper.DataSourceType.AZURE, application)
     }
 
@@ -218,6 +221,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                         }
                         "highlightSide" -> {
                             command.args.segment?.let { segment ->
+                                Log.d(TAG, "highlightSide command found with segment: $segment")
                                 currentTriangle = currentTriangle?.copy(
                                     highlightedSides = (currentTriangle?.highlightedSides ?: emptyList()) + segment
                                 )
@@ -225,6 +229,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                         }
                         "highlightAngle" -> {
                             command.args.point?.let { point ->
+                                Log.d(TAG, "highlightAngle command found with point: $point")
                                 currentTriangle = currentTriangle?.copy(highlightedAngle = point)
                             }
                         }
@@ -240,40 +245,61 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                     currentState.flowState
                 }
 
+                Log.d(TAG, "Updating flow state to $newFlowState")
+
                 if (currentTriangle != null) {
                     val otherItems = currentState.items.filterNot { it is WhiteboardItem.AnimatedTriangle }
                     currentState.copy(
                         items = otherItems + currentTriangle!!,
                         tutorMessage = response.tutorMessage,
                         flowState = newFlowState
-                    )
+                    ).also {
+                        Log.d(TAG, "State updated with new triangle and tutor message.")
+                    }
                 } else {
                     currentState.copy(
                         tutorMessage = response.tutorMessage,
                         flowState = newFlowState
-                    )
+                    ).also {
+                        Log.d(TAG, "State updated with new tutor message, no triangle changes.")
+                    }
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse LLM response", e)
+            Log.e(TAG, "Failed to parse LLM response: $jsonString", e)
         }
     }
 
 
+    fun onImageSelected(uri: Uri?) {
+        Log.d(TAG, "Image selected with URI: $uri")
+        _uiState.update { it.copy(selectedImageUri = uri) }
+    }
+
     fun onTextInputChanged(newText: String) {
+        Log.d(TAG, "Text input changed: $newText")
         _uiState.update { it.copy(textInput = newText, showConfirmationFailureMessage = false) }
     }
 
     fun onSendText() {
-        val currentText = _uiState.value.textInput
-        if (currentText.isBlank()) return
-
         val currentState = _uiState.value
+        val currentText = currentState.textInput
+        val imageUri = currentState.selectedImageUri
+
+        Log.d(TAG, "onSendText called with text: '$currentText' and image URI: $imageUri")
+
+        if (currentText.isBlank() && imageUri == null) {
+            Log.w(TAG, "onSendText called with no text or image, ignoring.")
+            return
+        }
+
         val (systemPrompt, newFlowState, newProblemStatement) = when (currentState.flowState) {
             WhiteboardFlowState.INITIAL -> {
+                Log.d(TAG, "onSendText in INITIAL state. Transitioning to INTERPRETING.")
                 Triple(systemPromptInterpret, WhiteboardFlowState.INTERPRETING, currentText)
             }
             WhiteboardFlowState.SOCRATIC_TUTORING -> {
+                Log.d(TAG, "onSendText in SOCRATIC_TUTORING state.")
                 Triple(systemPromptSocratic, WhiteboardFlowState.SOCRATIC_TUTORING, currentState.initialProblemStatement)
             }
             else -> {
@@ -286,18 +312,34 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
             textInput = "",
             flowState = newFlowState,
             initialProblemStatement = newProblemStatement,
-            showConfirmationFailureMessage = false
-        )}
+            showConfirmationFailureMessage = false,
+            selectedImageUri = null // Clear image after sending
+        ).also {
+            Log.d(TAG, "State updated for sending text. New flow state: ${it.flowState}")
+        }}
 
         viewModelScope.launch {
             val fullPrompt = "$systemPrompt\n\nHere is the student's message:\n$currentText"
+            Log.d(TAG, "Sending prompt to LLM (first 200 chars): ${fullPrompt.take(200)}")
             var fullResponse = ""
+
+            val bitmaps = imageUri?.let { uri ->
+                try {
+                    val inputStream = getApplication<Application>().contentResolver.openInputStream(uri)
+                    listOf(android.graphics.BitmapFactory.decodeStream(inputStream))
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error loading bitmap from URI: $uri", e)
+                    emptyList()
+                }
+            } ?: emptyList()
 
             LlmHelper.runInference(
                 input = fullPrompt,
+                images = bitmaps,
                 resultListener = { partialResult, done ->
                     fullResponse += partialResult
                     if (done) {
+                        Log.d(TAG, "LLM inference finished. Full response received.")
                         CoroutineScope(Dispatchers.Main).launch {
                             processLlmResponse(fullResponse)
                         }
@@ -308,22 +350,27 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun onConfirmationAccept() {
+        Log.d(TAG, "Confirmation accepted by user.")
         _uiState.update {
             it.copy(
                 flowState = WhiteboardFlowState.SOCRATIC_TUTORING,
                 tutorMessage = null // Clear interpretation message
-            )
+            ).also {
+                Log.d(TAG, "State updated for confirmation accept. New flow state: ${it.flowState}")
+            }
         }
 
         // Kick off the Socratic dialogue
         viewModelScope.launch {
             val socraticPrompt = "$systemPromptSocratic\n\nThe student has confirmed this interpretation of the problem: \"${_uiState.value.initialProblemStatement}\". Now, begin the conversation with a guiding question."
+            Log.d(TAG, "Kicking off Socratic dialogue with prompt (first 200 chars): ${socraticPrompt.take(200)}")
             var fullResponse = ""
             LlmHelper.runInference(
                 input = socraticPrompt,
                 resultListener = { partialResult, done ->
                     fullResponse += partialResult
                     if (done) {
+                        Log.d(TAG, "Socratic LLM inference finished. Full response received.")
                         CoroutineScope(Dispatchers.Main).launch {
                             processLlmResponse(fullResponse)
                         }
@@ -334,6 +381,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun onConfirmationReject() {
+        Log.d(TAG, "Confirmation rejected by user. Resetting state.")
         _uiState.update {
             it.copy(
                 flowState = WhiteboardFlowState.INITIAL,
@@ -341,12 +389,15 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                 tutorMessage = null,
                 initialProblemStatement = "",
                 showConfirmationFailureMessage = true
-            )
+            ).also {
+                Log.d(TAG, "State reset after rejection.")
+            }
         }
     }
 
     fun addPath(path: Path, color: Color, strokeWidth: Float) {
         val newPath = WhiteboardItem.DrawingPath(path, color, strokeWidth)
+        Log.d(TAG, "Adding new drawing path to state.")
         _uiState.update { it.copy(items = it.items + newPath) }
     }
 }

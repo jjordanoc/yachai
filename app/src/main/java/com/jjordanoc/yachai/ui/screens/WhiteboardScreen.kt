@@ -29,7 +29,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.AutoMirrored
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -76,6 +75,24 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jjordanoc.yachai.utils.TAG
 import java.util.Locale
 import kotlin.math.sqrt
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import coil.compose.rememberAsyncImagePainter
+import androidx.core.content.FileProvider
+import java.io.File
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.core.content.ContextCompat
+import android.Manifest
+import android.content.pm.PackageManager
+import kotlinx.coroutines.launch
 
 /*
 val mockJsonResponse = """
@@ -128,13 +145,19 @@ fun WhiteboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    Log.d(TAG, "WhiteboardScreen recomposing with flowState: ${uiState.flowState}")
+
     when (uiState.flowState) {
         WhiteboardFlowState.INITIAL -> {
             InitialWhiteboardScreen(
                 text = uiState.textInput,
+                imageUri = uiState.selectedImageUri,
                 onTextChange = viewModel::onTextInputChanged,
-                onSendClick = viewModel::onSendText,
-                onCameraClick = { /* TODO */ },
+                onSendClick = {
+                    Log.d(TAG, "InitialWhiteboardScreen: Send button clicked.")
+                    viewModel.onSendText()
+                },
+                onImageSelected = viewModel::onImageSelected,
                 showFailureMessage = uiState.showConfirmationFailureMessage
             )
         }
@@ -150,11 +173,70 @@ fun WhiteboardScreen(
 @Composable
 fun InitialWhiteboardScreen(
     text: String,
+    imageUri: Uri?,
     onTextChange: (String) -> Unit,
     onSendClick: () -> Unit,
-    onCameraClick: () -> Unit,
+    onImageSelected: (Uri?) -> Unit,
     showFailureMessage: Boolean
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // --- Permission Handling ---
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                Log.d(TAG, "Camera permission granted.")
+                // Permission was granted, launch the camera
+                launchCamera()
+            } else {
+                Log.d(TAG, "Camera permission denied.")
+                // Handle permission denial (e.g., show a snackbar or dialog)
+            }
+        }
+    )
+
+    // --- Image Picker Logic ---
+    var tempCameraImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            Log.d(TAG, "Image picker result: $uri")
+            onImageSelected(uri)
+        }
+    )
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+        onResult = { success ->
+            if (success) {
+                Log.d(TAG, "Camera result success. URI: $tempCameraImageUri")
+                onImageSelected(tempCameraImageUri)
+            } else {
+                Log.d(TAG, "Camera capture failed or was cancelled.")
+            }
+        }
+    )
+
+    fun launchCamera() {
+        val file = File(context.cacheDir, "temp_image_${System.currentTimeMillis()}.jpg")
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.provider",
+            file
+        )
+        tempCameraImageUri = uri
+        cameraLauncher.launch(uri)
+    }
+
+    fun launchImageChooser() {
+        // We can't directly combine camera into the modern Photo Picker, so we'll just launch it for now.
+        // A custom dialog could be used to present both options.
+        imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -165,11 +247,33 @@ fun InitialWhiteboardScreen(
         ) {
             if (showFailureMessage) {
                 Text(
-                    text = "Por favor, vuelve a intentarlo escribiendo el problema en texto.",
+                    text = "Por favor, vuelve a intentarlo escribiendo el problema en texto o subiendo una imagen.",
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center
                 )
+                Spacer(Modifier.height(16.dp))
+            }
+
+            if (imageUri != null) {
+                Box {
+                    Image(
+                        painter = rememberAsyncImagePainter(imageUri),
+                        contentDescription = "Selected Image",
+                        modifier = Modifier
+                            .fillMaxWidth(0.8f)
+                            .aspectRatio(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                    )
+                    IconButton(
+                        onClick = { onImageSelected(null) },
+                        modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+                        colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Black.copy(alpha = 0.5f))
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Remove Image", tint = Color.White)
+                    }
+                }
                 Spacer(Modifier.height(16.dp))
             }
 
@@ -185,18 +289,41 @@ fun InitialWhiteboardScreen(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Button to launch image chooser (gallery)
                 FloatingActionButton(
-                    onClick = onCameraClick,
+                    onClick = { launchImageChooser() },
                     containerColor = Color.Black,
                     contentColor = Color.White,
                     modifier = Modifier.width(64.dp).height(64.dp)
                 ) {
-                    Icon(Icons.Default.PhotoCamera, contentDescription = "Take or select a picture")
+                    Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Select a picture from gallery")
                 }
+                // Button to launch camera
+                FloatingActionButton(
+                    onClick = {
+                        when (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)) {
+                            PackageManager.PERMISSION_GRANTED -> {
+                                Log.d(TAG, "Camera permission already granted. Launching camera.")
+                                launchCamera()
+                            }
+                            else -> {
+                                Log.d(TAG, "Camera permission not granted. Requesting permission.")
+                                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                            }
+                        }
+                    },
+                    containerColor = Color.Black,
+                    contentColor = Color.White,
+                    modifier = Modifier.width(64.dp).height(64.dp)
+                ) {
+                    Icon(Icons.Default.PhotoCamera, contentDescription = "Take a picture")
+                }
+
+                val sendEnabled = text.isNotBlank() || imageUri != null
                 FloatingActionButton(
                     onClick = onSendClick,
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = if (sendEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = if (sendEnabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.width(64.dp).height(64.dp)
                 ) {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send text")
@@ -217,6 +344,7 @@ fun MainWhiteboardContent(
     val transformState = rememberTransformableState { zoomChange, panChange, _ ->
         scale *= zoomChange
         offset += panChange
+        Log.d(TAG, "Transform state changed: zoom=$zoomChange, pan=$panChange. New scale=$scale, offset=$offset")
     }
 
     val animationProgress = remember { Animatable(0f) }
@@ -314,15 +442,25 @@ fun MainWhiteboardContent(
                 WhiteboardFlowState.SOCRATIC_TUTORING -> {
                     WhiteboardBottomBar(
                         text = uiState.textInput,
+                        imageUri = uiState.selectedImageUri,
                         onTextChange = viewModel::onTextInputChanged,
-                        onSendClick = viewModel::onSendText,
-                        onImageClick = { /* TODO: Implement image picking */ }
+                        onSendClick = {
+                            Log.d(TAG, "WhiteboardBottomBar: Send button clicked.")
+                            viewModel.onSendText()
+                        },
+                        onImageSelected = viewModel::onImageSelected
                     )
                 }
                 WhiteboardFlowState.AWAITING_CONFIRMATION, WhiteboardFlowState.INTERPRETING -> {
                     ConfirmationBar(
-                        onAccept = viewModel::onConfirmationAccept,
-                        onReject = viewModel::onConfirmationReject,
+                        onAccept = {
+                            Log.d(TAG, "ConfirmationBar: Accept button clicked.")
+                            viewModel.onConfirmationAccept()
+                        },
+                        onReject = {
+                            Log.d(TAG, "ConfirmationBar: Reject button clicked.")
+                            viewModel.onConfirmationReject()
+                        },
                         isWaiting = uiState.flowState == WhiteboardFlowState.INTERPRETING
                     )
                 }
@@ -367,6 +505,8 @@ fun MainWhiteboardContent(
                     val totalHeight = figureBottom - figureTop
                     val canvasCenter = Offset(size.width / 2, size.height / 2)
                     val centeringOffset = canvasCenter - Offset(figureLeft + totalWidth / 2, figureTop + totalHeight / 2)
+
+                    Log.d(TAG, "Canvas: Centering triangle with offset: $centeringOffset")
 
                     // --- Drawing Phase ---
                     translate(left = centeringOffset.x, top = centeringOffset.y) {
@@ -648,38 +788,81 @@ private fun ConfirmationBar(
 @Composable
 private fun WhiteboardBottomBar(
     text: String,
+    imageUri: Uri?,
     onTextChange: (String) -> Unit,
     onSendClick: () -> Unit,
-    onImageClick: () -> Unit
+    onImageSelected: (Uri?) -> Unit
 ) {
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = onImageSelected
+    )
+
     Surface(
         tonalElevation = 3.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = text,
-                onValueChange = onTextChange,
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("Ask a question or describe an image...") },
-                maxLines = 5
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(
-                onClick = onImageClick,
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                )
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            if (imageUri != null) {
+                Box(modifier = Modifier.padding(bottom = 8.dp)) {
+                    Image(
+                        painter = rememberAsyncImagePainter(imageUri),
+                        contentDescription = "Selected Image",
+                        modifier = Modifier
+                            .height(100.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable {
+                                // Allow re-picking image
+                                imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            }
+                    )
+                    IconButton(
+                        onClick = { onImageSelected(null) },
+                        modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
+                         colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Black.copy(alpha = 0.5f))
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Remove Image", tint = Color.White)
+                    }
+                }
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.AddPhotoAlternate,
-                    contentDescription = "Add Image"
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = onTextChange,
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Ask a question or add an image...") },
+                    maxLines = 5
                 )
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = {
+                        imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    },
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AddPhotoAlternate,
+                        contentDescription = "Add Image"
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+
+                val sendEnabled = text.isNotBlank() || imageUri != null
+                FloatingActionButton(
+                    onClick = onSendClick,
+                    containerColor = if (sendEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = if (sendEnabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Send"
+                    )
+                }
             }
         }
     }
