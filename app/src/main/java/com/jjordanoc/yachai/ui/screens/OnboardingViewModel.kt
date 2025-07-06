@@ -13,7 +13,6 @@ import androidx.work.WorkManager
 import com.jjordanoc.yachai.R
 import com.jjordanoc.yachai.data.ModelDownloadStatus
 import com.jjordanoc.yachai.data.ModelDownloadStatusType
-import com.jjordanoc.yachai.utils.FileUtils
 import com.jjordanoc.yachai.utils.TAG
 import com.jjordanoc.yachai.worker.ModelDownloadWorker
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,11 +57,11 @@ class OnboardingViewModel(application: Application) : AndroidViewModel(applicati
                 downloadWorkRequest
             )
 
-            observeDownloadProgress(downloadWorkRequest.id)
+            observeDownloadProgress(downloadWorkRequest.id, model.sizeInBytes)
         }
     }
 
-    private fun observeDownloadProgress(workerId: java.util.UUID) {
+    private fun observeDownloadProgress(workerId: java.util.UUID, totalBytes: Long) {
         workManager.getWorkInfoByIdLiveData(workerId).observeForever { workInfo ->
             when (workInfo?.state) {
                 WorkInfo.State.RUNNING -> {
@@ -73,7 +72,7 @@ class OnboardingViewModel(application: Application) : AndroidViewModel(applicati
                     _downloadState.value = DownloadState.Downloading(
                         ModelDownloadStatus(
                             status = ModelDownloadStatusType.IN_PROGRESS,
-                            totalBytes = workInfo.progress.getLong(ModelDownloadWorker.KEY_MODEL_TOTAL_BYTES, 0L),
+                            totalBytes = totalBytes,
                             receivedBytes = receivedBytes,
                             bytesPerSecond = downloadRate,
                             remainingMs = remainingMs

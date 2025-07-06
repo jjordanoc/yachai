@@ -37,14 +37,6 @@ fun AppNavigation() {
         composable(Routes.CAMERA_SCREEN) {
             CameraScreen(navController = navController)
         }
-        composable(Routes.RESULT_SCREEN) { backStackEntry ->
-            val imageUri = backStackEntry.arguments?.getString("imageUri")
-            val decodedUri = URLDecoder.decode(imageUri, StandardCharsets.UTF_8.toString())
-            ResultScreen(navController = navController, imageUri = decodedUri)
-        }
-        composable(Routes.PRACTICE_SCREEN) {
-            PracticeScreen(navController = navController)
-        }
         composable(Routes.WHITEBOARD_SCREEN) {
             WhiteboardScreen()
         }

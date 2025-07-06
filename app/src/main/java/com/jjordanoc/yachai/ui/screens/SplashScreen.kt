@@ -9,17 +9,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
+import com.jjordanoc.yachai.data.Models
+import com.jjordanoc.yachai.data.isDownloaded
 import com.jjordanoc.yachai.ui.Routes
-import com.jjordanoc.yachai.utils.FileUtils
 import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(navController: NavController) {
     val context = LocalContext.current
+    val model = Models.GEMMA_3N_E2B_VISION
 
     LaunchedEffect(Unit) {
         delay(1000) // Simulate a loading time
-        val destination = if (FileUtils.isModelDownloaded(context)) {
+        val destination = if (model.isDownloaded(context)) {
             Routes.MAIN_SCREEN
         } else {
             Routes.ONBOARDING_SCREEN

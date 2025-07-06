@@ -8,17 +8,20 @@ import com.google.mediapipe.tasks.genai.llminference.GraphOptions
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
 import com.jjordanoc.yachai.utils.TAG
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 private const val LLM_TAG = "YachAIMediaPipeDataSource"
 
 data class ModelConfig(
     val modelPath: String,
-    val maxTokens: Int = 512,
-    val topK: Int = 40,
-    val topP: Float = 0.95f,
+    val maxTokens: Int = 480,
+    val topK: Int = 15,
+    val topP: Float = 0.9f,
     val temperature: Float = 0.8f,
     val supportImage: Boolean = true,
-    val preferredBackend: LlmInference.Backend = LlmInference.Backend.GPU
+    val useGpu: Boolean = true
 )
 
 class MediaPipeLlmDataSource(
@@ -34,23 +37,26 @@ class MediaPipeLlmDataSource(
     }
 
     private fun initialize() {
-        Log.d(LLM_TAG, "Initializing MediaPipe model")
-        try {
-            val optionsBuilder = LlmInference.LlmInferenceOptions.builder()
-                .setModelPath(modelConfig.modelPath)
-                .setMaxTokens(modelConfig.maxTokens)
-                .setPreferredBackend(modelConfig.preferredBackend)
-                .setMaxNumImages(if (modelConfig.supportImage) 1 else 0)
-
-            val options = optionsBuilder.build()
-            llmInference = LlmInference.createFromOptions(context, options)
-
-            resetSession()
-            Log.d(LLM_TAG, "MediaPipe model initialization successful")
-
-        } catch (e: Exception) {
-            Log.e(LLM_TAG, "Model initialization failed: ${e.message}", e)
-            // Consider how to bubble up this error
+        CoroutineScope(Dispatchers.IO).launch {
+            Log.d(LLM_TAG, "Initializing MediaPipe model...")
+            try {
+                val options = LlmInference.LlmInferenceOptions.builder()
+                    .setModelPath(modelConfig.modelPath)
+                    .setMaxTokens(modelConfig.maxTokens)
+                    .setPreferredBackend(
+                        if (modelConfig.useGpu) LlmInference.Backend.GPU
+                        else LlmInference.Backend.CPU
+                    )
+                    .setMaxNumImages(if (modelConfig.supportImage) 1 else 0)
+                    .build()
+                llmInference = LlmInference.createFromOptions(context, options)
+                resetSession()
+                Log.d(LLM_TAG, "MediaPipe model initialization successful.")
+            } catch (e: Exception) {
+                Log.e(LLM_TAG, "Model initialization failed: ${e.message}", e)
+                // We can't easily bubble this up to the UI from a fire-and-forget coroutine.
+                // The session will remain null, and runInference will report the error.
+            }
         }
     }
 
@@ -79,7 +85,7 @@ class MediaPipeLlmDataSource(
     override fun runInference(input: String, images: List<Bitmap>, resultListener: ResultListener) {
         val currentSession = session
         if (currentSession == null) {
-            resultListener("Error: Model not initialized", true)
+            resultListener("Error: Model is not yet initialized or failed to load. Please wait or try again.", true)
             return
         }
 

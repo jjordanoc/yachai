@@ -18,6 +18,7 @@ import com.jjordanoc.yachai.data.ModelDownloadStatus
 import com.jjordanoc.yachai.data.Models
 import com.jjordanoc.yachai.data.getLocalPath
 import com.jjordanoc.yachai.utils.TAG
+import com.jjordanoc.yachai.utils.SettingsManager
 import com.jjordanoc.yachai.utils.api.AzureOpenAIClient
 import com.jjordanoc.yachai.utils.ocr.MathOCRManager
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.Job
 
 
 sealed interface ChatMessage {
@@ -46,11 +48,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     val uiState = _uiState.asStateFlow()
 
     private val ocrManager = MathOCRManager(application)
-    // private var llmInference: LlmInference? = null // Commented out for Azure testing
-    // private val model = Models.GEMMA_3N_E2B_VISION // Commented out for Azure testing
+    private var llmInference: LlmInference? = null
+    private val model = Models.GEMMA_3N_E2B_VISION
+    private var initializationJob: Job? = null
 
     init {
-        // initializeModel() // Commented out for Azure testing
+        initializeModel()
     }
 
     private fun addMessage(message: ChatMessage) {
@@ -58,12 +61,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = ChatUiState.Success(currentMessages + message)
     }
 
-    /* Commented out for Azure testing
     private fun initializeModel() {
-        viewModelScope.launch(Dispatchers.IO) {
+        initializationJob = viewModelScope.launch(Dispatchers.IO) {
             val context = getApplication<Application>().applicationContext
+            val settingsManager = SettingsManager(context)
             val modelPath = model.getLocalPath(context)
-            val modelFile = File(modelPath)
+            val modelFile = java.io.File(modelPath)
             if (!modelFile.exists()) {
                 Log.e(TAG, "Model file does not exist at: $modelPath")
                 _uiState.value = ChatUiState.Error("Model is not downloaded. Please go back and download it first.")
@@ -75,7 +78,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     .setModelPath(modelPath)
                     .setMaxTokens(1024)
                     .setMaxNumImages(1)
-                    .setPreferredBackend(LlmInference.Backend.CPU) // Default to CPU for this POC
+                    .setPreferredBackend(
+                        if (settingsManager.isGpuEnabled()) LlmInference.Backend.GPU
+                        else LlmInference.Backend.CPU
+                    )
                     .build()
                 llmInference = LlmInference.createFromOptions(context, options)
             } catch (e: Exception) {
@@ -83,10 +89,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-    */
 
     fun processImage(uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
+            initializationJob?.join() // Wait for the model to be initialized
+
             _uiState.value = ChatUiState.Loading
             val context = getApplication<Application>().applicationContext
             try {
@@ -103,7 +110,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 
                 // Run Azure inference and display result
-                runAzureInference(bitmap, extractedText)
+                // runAzureInference(bitmap, extractedText)
+                runInferenceWithImage(bitmap)
 
             } catch (e: Exception) {
                 Log.e(TAG, "OCR/Inference failed: ${e.stackTraceToString()}")
@@ -116,13 +124,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /*
     private fun runAzureInference(bitmap: Bitmap, ocrText: String) {
         try {
-            val prompt = """
+            val prompt = ""
                 You are a friendly and encouraging math tutor. The user has provided an image.".
                 Based on the image, how can I solve this problem?
                 Provide a clear, step-by-step explanation.
-                """.trimIndent()
+                "" .trimIndent()
             
             val result = AzureOpenAIClient.callAzureOpenAI(prompt = prompt, bitmap = bitmap)
             addMessage(ChatMessage.ModelMessage("LLM Result:\n$result"))
@@ -131,8 +140,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             addMessage(ChatMessage.ErrorMessage("Azure Inference failed: ${e.localizedMessage}"))
         }
     }
+    */
     
-    /* Commented out for Azure testing
     private suspend fun runInferenceWithImage(bitmap: Bitmap) {
         if (llmInference == null) {
             addMessage(ChatMessage.ErrorMessage("Model is not initialized."))
@@ -152,13 +161,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     )
                     .build()
 
-            llmInference!!.use { inference ->
-                LlmInferenceSession.createFromOptions(inference, sessionOptions).use { session ->
-                    session.addQueryChunk(prompt)
-                    session.addImage(mpImage)
-                    val result = session.generateResponse()
-                    addMessage(ChatMessage.ModelMessage("LLM Result:\n$result"))
-                }
+            LlmInferenceSession.createFromOptions(llmInference!!, sessionOptions).use { session ->
+                session.addQueryChunk(prompt)
+                session.addImage(mpImage)
+                val result = session.generateResponse()
+                addMessage(ChatMessage.ModelMessage("LLM Result:\n$result"))
             }
 
         } catch (e: Exception) {
@@ -166,7 +173,6 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             addMessage(ChatMessage.ErrorMessage("LLM Inference failed: ${e.localizedMessage}"))
         }
     }
-    */
 
     private fun uriToBitmap(context: Context, uri: Uri): Bitmap {
         val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -179,6 +185,6 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
-        // llmInference?.close() // Commented out for Azure testing
+        llmInference?.close()
     }
 } 

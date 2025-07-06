@@ -264,7 +264,7 @@ fun MainWhiteboardContent(
     val transformState = rememberTransformableState { zoomChange, panChange, _ ->
         scale *= zoomChange
         offset += panChange
-        Log.d(TAG, "Transform state changed: zoom=$zoomChange, pan=$panChange. New scale=$scale, offset=$offset")
+//        Log.d(TAG, "Transform state changed: zoom=$zoomChange, pan=$panChange. New scale=$scale, offset=$offset")
     }
 
     val animationProgress = remember { Animatable(0f) }

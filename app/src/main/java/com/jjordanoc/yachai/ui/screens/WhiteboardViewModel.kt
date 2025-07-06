@@ -30,6 +30,10 @@ import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
+import com.jjordanoc.yachai.data.Models
+import com.jjordanoc.yachai.data.getLocalPath
+import com.jjordanoc.yachai.utils.SettingsManager
+import com.jjordanoc.yachai.data.ModelConfig
 
 
 enum class WhiteboardFlowState {
@@ -109,6 +113,7 @@ data class WhiteboardState(
     val flowState: WhiteboardFlowState = WhiteboardFlowState.INITIAL,
     val initialProblemStatement: String = "",
     val tutorMessage: String? = null,
+    val hint: String? = null,
     val showConfirmationFailureMessage: Boolean = false,
     val selectedImageUri: Uri? = null
 )
@@ -162,49 +167,59 @@ Tu salida debe ser un único objeto JSON con esta estructura:
 No escribas nada fuera del objeto JSON.
 """.trimIndent()
 
-val systemPromptSocratic = """
+fun systemPromptSocratic(chatHistory: String): String {
+    return """
 Eres un tutor de matemáticas experto, amigable y paciente. Estás ayudando a un estudiante a resolver un problema de geometría mediante una conversación paso a paso. Utilizas texto en español y animaciones sobre una pizarra digital.
 
-Tienes acceso a un historial de los últimos dos turnos de conversación, incluyendo lo que el estudiante respondió y lo que tú mostraste anteriormente.
+Siempre debes usar el estilo socrático: no debes dar la respuesta directamente. Haz preguntas que ayuden al estudiante a razonar por sí mismo.
 
-Tu objetivo es guiar al estudiante para que encuentre la solución por sí mismo. No debes dar la respuesta directamente, ni escribir el resultado final. En su lugar, haz preguntas que ayuden al estudiante a razonar.
+### Contexto:
+Tienes acceso al historial de los últimos dos turnos de conversación. Cada turno contiene lo que el estudiante dijo y lo que tú mostraste anteriormente (mensaje, pista y animaciones).
 
-La figura central es siempre un triángulo con vértices A, B y C. El ángulo en el punto B es recto.
+La figura central en la pizarra es un triángulo con vértices A, B y C. El ángulo en el punto B es recto.
 
-Puedes usar los siguientes comandos de animación. Solo puedes usar estos comandos y sus argumentos exactamente como se describen:
+### Historial reciente:
+$chatHistory
 
-1. drawRightTriangle  
+### Tu tarea:
+Basado en el historial y la última respuesta del estudiante, continúa la conversación con un nuevo paso. Tu objetivo es avanzar el razonamiento del estudiante, despejar dudas y fortalecer su comprensión. No reveles resultados finales.
+
+### Comandos de animación permitidos:
+Usa solo los siguientes comandos exactamente como están descritos. Cada paso debe contener entre **1 y 3 animaciones** cuidadosamente seleccionadas para **maximizar el valor educativo y aclarar posibles malentendidos**.
+
+1. **highlightSide**  
   args:  
-    sideLengths: un objeto con claves "AB", "BC", "AC" y valores numéricos o "x"
+    segment: "AB", "BC" o "AC"  
+    label (opcional): texto corto como "hipotenusa", "x", etc.
 
-2. highlightSide  
+2. **highlightAngle**  
   args:  
-    segment: nombre del lado ("AB", "BC", "AC")  
-    label (opcional): una etiqueta como "x"
+    point: "A", "B" o "C"
 
-3. highlightAngle  
+3. **appendExpression**  
   args:  
-    point: vértice de la figura ("A", "B", "C")  
-    type (opcional): solo "right"
+    expression: expresión nueva que se añade a la pizarra como "4² = 16"
 
-Tu respuesta debe estar en el siguiente formato JSON (exactamente así):
+### Formato de salida (debes seguirlo exactamente):
+Responde con un único objeto JSON en el siguiente formato:
 
 {
   "tutor_message": "TEXTO EN ESPAÑOL",
   "hint": "TEXTO EN ESPAÑOL",
   "animation": [
-    { "command": "COMANDO", "args": { ... } },
-    ...
+    { "command": "COMANDO", "args": { ... } }
   ]
 }
 
-Instrucciones finales:
+### Instrucciones finales:
 - No incluyas explicaciones fuera del JSON.
 - No escribas ningún comentario ni justificación.
-- Solo responde con un único objeto JSON válido.
 - Toda la comunicación visible debe estar en español.
-- Tu estilo debe ser motivador y basado en preguntas guiadas.
+- Mantén un tono amigable, motivador y guiado por preguntas.
+- Usa como máximo 3 animaciones por paso.
 """.trimIndent()
+}
+
 
 class WhiteboardViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -217,7 +232,20 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
 
     init {
         Log.d(TAG, "WhiteboardViewModel initialized.")
-        LlmHelper.switchDataSource(LlmHelper.DataSourceType.AZURE, application)
+        val context = getApplication<Application>().applicationContext
+        val settingsManager = SettingsManager(context)
+        val model = Models.GEMMA_3N_E2B_VISION
+
+        val modelConfig = ModelConfig(
+            modelPath = model.getLocalPath(context),
+            useGpu = settingsManager.isGpuEnabled()
+        )
+
+        LlmHelper.switchDataSource(
+            type = LlmHelper.DataSourceType.MEDIAPIPE,
+            context = context,
+            modelConfig = modelConfig
+        )
     }
 
     fun processLlmResponse(jsonString: String) {
@@ -285,6 +313,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                     currentState.copy(
                         items = otherItems + currentTriangle!!,
                         tutorMessage = response.tutorMessage,
+                        hint = response.hint,
                         flowState = newFlowState
                     ).also {
                         Log.d(TAG, "State updated with new triangle and tutor message.")
@@ -292,6 +321,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                 } else {
                     currentState.copy(
                         tutorMessage = response.tutorMessage,
+                        hint = response.hint,
                         flowState = newFlowState
                     ).also {
                         Log.d(TAG, "State updated with new tutor message, no triangle changes.")
@@ -333,7 +363,20 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
             }
             WhiteboardFlowState.SOCRATIC_TUTORING -> {
                 Log.d(TAG, "onSendText in SOCRATIC_TUTORING state.")
-                Triple(systemPromptSocratic, WhiteboardFlowState.SOCRATIC_TUTORING, currentState.initialProblemStatement)
+                val history = mutableListOf<String>()
+                history.add("Tutor found problem statement: ${currentState.initialProblemStatement}")
+                val lastTutorMessage = currentState.tutorMessage
+                val lastHint = currentState.hint
+                if (lastTutorMessage != null) {
+                    var lastTurn = "Tutor: $lastTutorMessage"
+                    if (lastHint != null) {
+                       lastTurn += "\nHint: $lastHint"
+                    }
+                    lastTurn += "\nUser: $currentText"
+                    history.add(lastTurn)
+                }
+
+                Triple(systemPromptSocratic(history.joinToString("\n\n---\n\n")), WhiteboardFlowState.SOCRATIC_TUTORING, currentState.initialProblemStatement)
             }
             else -> {
                 Log.w(TAG, "onSendText called in unexpected state: ${currentState.flowState}")
@@ -384,10 +427,13 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
 
     fun onConfirmationAccept() {
         Log.d(TAG, "Confirmation accepted by user.")
+        val problemStatementFromTutor = _uiState.value.tutorMessage ?: _uiState.value.initialProblemStatement
         _uiState.update {
             it.copy(
                 flowState = WhiteboardFlowState.SOCRATIC_TUTORING,
-                tutorMessage = null // Clear interpretation message
+                tutorMessage = null, // Clear interpretation message
+                hint = null,
+                initialProblemStatement = problemStatementFromTutor
             ).also {
                 Log.d(TAG, "State updated for confirmation accept. New flow state: ${it.flowState}")
             }
@@ -395,7 +441,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
 
         // Kick off the Socratic dialogue
         viewModelScope.launch {
-            val socraticPrompt = "$systemPromptSocratic\n\nThe student has confirmed this interpretation of the problem: \"${_uiState.value.initialProblemStatement}\". Now, begin the conversation with a guiding question."
+            val socraticPrompt = systemPromptSocratic("Tutor found problem statement: $problemStatementFromTutor") + "\n\nNow, begin the conversation with a guiding question."
             Log.d(TAG, "Kicking off Socratic dialogue with prompt (first 200 chars): ${socraticPrompt.take(200)}")
             var fullResponse = ""
             LlmHelper.runInference(
@@ -420,6 +466,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                 flowState = WhiteboardFlowState.INITIAL,
                 items = emptyList(),
                 tutorMessage = null,
+                hint = null,
                 initialProblemStatement = "",
                 showConfirmationFailureMessage = true
             ).also {
