@@ -6,21 +6,20 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import com.jjordanoc.yachai.utils.TAG
 import kotlin.math.sqrt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import android.net.Uri
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -34,12 +33,7 @@ import com.jjordanoc.yachai.data.Models
 import com.jjordanoc.yachai.data.getLocalPath
 import com.jjordanoc.yachai.utils.SettingsManager
 import com.jjordanoc.yachai.data.ModelConfig
-import com.google.mediapipe.tasks.genai.llminference.LlmInference
-import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
-import com.google.mediapipe.tasks.genai.llminference.GraphOptions
-import com.google.mediapipe.framework.image.BitmapImageBuilder
 import android.graphics.Bitmap
-
 
 enum class WhiteboardFlowState {
     INITIAL,
@@ -48,6 +42,7 @@ enum class WhiteboardFlowState {
     SOCRATIC_TUTORING
 }
 
+@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 object LenientStringSerializer : KSerializer<String?> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("LenientString", PrimitiveKind.STRING)
 
@@ -245,8 +240,6 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
 
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
     private val viewModelScope = CoroutineScope(Dispatchers.IO)
-    private var llmInference: LlmInference? = null
-    private var session: LlmInferenceSession? = null
 
 
     init {
@@ -262,75 +255,36 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
             )
 
             try {
-                val options = LlmInference.LlmInferenceOptions.builder()
-                    .setModelPath(modelConfig.modelPath)
-                    .setMaxTokens(modelConfig.maxTokens)
-                    .setPreferredBackend(
-//                        if (modelConfig.useGpu) LlmInference.Backend.GPU
-//                        else LlmInference.Backend.CPU
-                        LlmInference.Backend.CPU
-                    )
-                    .setMaxNumImages(if (modelConfig.supportImage) 1 else 0)
-                    .build()
-                llmInference = LlmInference.createFromOptions(context, options)
-                Log.d(TAG, "Intialized model with $modelConfig")
-                resetSession(modelConfig)
+                LlmHelper.switchDataSource(LlmHelper.DataSourceType.AZURE, context, modelConfig)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to initialize model: ${e.localizedMessage}")
+                _uiState.update {
+                    it.copy(
+                        isModelLoading = false,
+                        tutorMessage = "Error: Failed to load the model. Please restart the app."
+                    )
+                }
             } finally {
                 _uiState.update { it.copy(isModelLoading = false) }
             }
         }
     }
 
-    private fun resetSession(modelConfig: ModelConfig) {
-        llmInference?.let { engine ->
-            try {
-                session?.close()
-                val sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
-                    .setTopK(modelConfig.topK)
-                    .setTopP(modelConfig.topP)
-                    .setTemperature(modelConfig.temperature)
-                    .setGraphOptions(
-                        GraphOptions.builder()
-                            .setEnableVisionModality(modelConfig.supportImage)
-                            .build()
-                    )
-                    .build()
-                session = LlmInferenceSession.createFromOptions(engine, sessionOptions)
-                Log.d(TAG, "Session reset successful")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to reset session", e)
-            }
-        }
-    }
-
-    private fun runInference(input: String, images: List<Bitmap> = emptyList(), resultListener: (String, Boolean) -> Unit) {
-        val currentSession = session
-        if (currentSession == null) {
-            resultListener("Error: Model is not yet initialized or failed to load. Please wait or try again.", true)
-            return
-        }
-
-        try {
-            if (input.trim().isNotEmpty()) {
-                currentSession.addQueryChunk(input)
-            }
-
-            for (image in images) {
-                currentSession.addImage(BitmapImageBuilder(image).build())
-            }
-
-            currentSession.generateResponseAsync(resultListener)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Inference failed: ${e.message}", e)
-            resultListener("Error: ${e.message ?: "Inference failed"}", true)
-        }
+    override fun onCleared() {
+        super.onCleared()
+        LlmHelper.cleanUp()
+        Log.d(TAG, "WhiteboardViewModel cleared and LlmHelper cleaned up.")
     }
 
     fun processLlmResponse(jsonString: String) {
         Log.d(TAG, "Processing LLM response: $jsonString")
+
+        if (jsonString.startsWith("Error:")) {
+            Log.e(TAG, "Received an error from LlmDataSource: $jsonString")
+            _uiState.update { it.copy(tutorMessage = jsonString) }
+            return
+        }
+
         try {
             val startIndex = jsonString.indexOf('{')
             val endIndex = jsonString.lastIndexOf('}')
@@ -504,7 +458,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
 
         viewModelScope.launch {
             val fullPrompt = "$systemPrompt\n\nHere is the student's message:\n$currentText"
-            val tokenCount = llmInference?.sizeInTokens(fullPrompt) ?: -1
+            val tokenCount = LlmHelper.sizeInTokens(fullPrompt)
             Log.d(TAG, "LLM Prompt ($tokenCount tokens): $fullPrompt")
             var fullResponse = ""
 
@@ -518,7 +472,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                 }
             } ?: emptyList()
 
-            runInference(
+            LlmHelper.runInference(
                 input = fullPrompt,
                 images = bitmaps,
                 resultListener = { partialResult, done ->
@@ -552,10 +506,10 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
         // Kick off the Socratic dialogue
         viewModelScope.launch {
             val socraticPrompt = systemPromptSocratic("Tutor found problem statement: $problemStatementFromTutor") + "\n\nNow, begin the conversation with a guiding question."
-            val tokenCount = llmInference?.sizeInTokens(socraticPrompt) ?: -1
+            val tokenCount = LlmHelper.sizeInTokens(socraticPrompt)
             Log.d(TAG, "LLM Prompt ($tokenCount tokens): $socraticPrompt")
             var fullResponse = ""
-            runInference(
+            LlmHelper.runInference(
                 input = socraticPrompt,
                 resultListener = { partialResult, done ->
                     fullResponse += partialResult

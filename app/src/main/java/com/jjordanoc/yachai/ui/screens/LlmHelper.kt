@@ -12,9 +12,9 @@ object LlmHelper {
         AZURE
     }
 
-    fun switchDataSource(type: DataSourceType, context: Context, modelConfig: ModelConfig? = null) {
+    suspend fun switchDataSource(type: DataSourceType, context: Context, modelConfig: ModelConfig? = null) {
         activeDataSource?.cleanUp()
-        activeDataSource = when (type) {
+        val newDataSource = when (type) {
             DataSourceType.MEDIAPIPE -> {
                 if (modelConfig == null) {
                     throw IllegalArgumentException("ModelConfig is required for MediaPipe")
@@ -23,11 +23,17 @@ object LlmHelper {
             }
             DataSourceType.AZURE -> AzureLlmDataSource()
         }
+        newDataSource.initialize()
+        activeDataSource = newDataSource
     }
 
     fun runInference(input: String, images: List<Bitmap> = emptyList(), resultListener: ResultListener) {
         activeDataSource?.runInference(input, images, resultListener)
             ?: resultListener("Error: No data source selected", true)
+    }
+
+    fun sizeInTokens(text: String): Int {
+        return activeDataSource?.sizeInTokens(text) ?: -1
     }
 
     fun cleanUp() {

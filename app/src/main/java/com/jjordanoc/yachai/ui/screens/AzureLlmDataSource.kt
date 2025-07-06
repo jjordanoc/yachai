@@ -9,6 +9,10 @@ import kotlinx.coroutines.launch
 class AzureLlmDataSource : LlmDataSource {
     private val scope = CoroutineScope(Dispatchers.IO)
 
+    override suspend fun initialize() {
+        // No-op for Azure client as it's a singleton and always "ready"
+    }
+
     override fun runInference(input: String, images: List<Bitmap>, resultListener: ResultListener) {
         scope.launch {
             try {
@@ -20,6 +24,11 @@ class AzureLlmDataSource : LlmDataSource {
                 resultListener("Error: ${e.message}", true)
             }
         }
+    }
+
+    override fun sizeInTokens(text: String): Int {
+        // Not implemented for Azure, return a placeholder
+        return -1
     }
 
     override fun cleanUp() {
