@@ -517,6 +517,16 @@ fun MainWhiteboardContent(
                             nativeCanvas.drawText("C", pC.x + 20f, pC.y + 15f, labelPaint)
                         }
 
+                        // Draw right angle indicator at B
+                        if (progress > 1) { // Draw after AB and BC start drawing
+                            val angleSize = 25f
+                            val rightAnglePath = Path().apply {
+                                moveTo(pB.x + angleSize, pB.y)
+                                lineTo(pB.x + angleSize, pB.y - angleSize)
+                                lineTo(pB.x, pB.y - angleSize)
+                            }
+                            drawPath(rightAnglePath, Color.Gray, style = Stroke(width = 3f))
+                        }
 
                         // Draw side AB
                         if (progress > 0) {
@@ -569,7 +579,11 @@ fun MainWhiteboardContent(
                     tutorMessage = tutorMessageText,
                     onChatClick = { /* TODO: Implement chat history */ },
                     visibilityProgress = tutorMessageAnimatable.value,
-                    showIcon = uiState.flowState == WhiteboardFlowState.SOCRATIC_TUTORING
+                    showIcon = uiState.flowState in setOf(
+                        WhiteboardFlowState.INTERPRETING,
+                        WhiteboardFlowState.AWAITING_CONFIRMATION,
+                        WhiteboardFlowState.SOCRATIC_TUTORING
+                    )
                 )
             }
         }

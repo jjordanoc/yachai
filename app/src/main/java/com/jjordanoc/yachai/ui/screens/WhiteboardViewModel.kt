@@ -137,6 +137,7 @@ data class WhiteboardState(
     val isModelLoading: Boolean = true
 )
 
+
 val systemPromptInterpret = """
 Eres un tutor de matemáticas interactivo. Tu tarea es:
 
@@ -161,7 +162,7 @@ Tu salida debe ser un único objeto JSON con esta estructura exacta:
   - "álgebra"
   - "geometría"
 
-- El campo **"tutor_message"** debe estar en español claro y preguntar si la interpretación es correcta.
+- El campo **"tutor_message"** debe estar en español claro y preguntar si tu interpretación del problema es correcta.
 - Solo usa comandos si **problem_type = "geometría"**.
 - Usa máximo **1 comando de animación**.
 - No des la solución. Solo representa el problema.
@@ -172,15 +173,16 @@ Tu salida debe ser un único objeto JSON con esta estructura exacta:
 - **drawRightTriangle**
   - Dibuja un triángulo rectángulo con ángulo recto en el punto **B**
   - args: {
-      "AB": número o "x",
-      "BC": número o "x",
-      "AC": número o "x",
+      "AB": número o "x,y,z...",
+      "BC": número o "x,y,z...",
+      "AC": número o "x,y,z,...",
       "angle_A" (opcional): número en grados,
       "angle_C" (opcional): número en grados
     }
   - **AC** es la hipotenusa (entre puntos A y C).
   - **AB** y **BC** son los catetos.
 """.trimIndent()
+
 
 fun systemPromptSocratic(chatHistory: String): String {
     return """
@@ -467,7 +469,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                 Log.d(TAG, "onSendText in INITIAL state. Transitioning to INTERPRETING.")
                 Triple(systemPromptInterpret, WhiteboardFlowState.INTERPRETING, currentText)
             }
-            WhiteboardFlowState.SOCRATIC_TUTORING -> {
+            WhiteboardFlowState.AWAITING_CONFIRMATION, WhiteboardFlowState.SOCRATIC_TUTORING -> {
                 Log.d(TAG, "onSendText in SOCRATIC_TUTORING state.")
                 val history = mutableListOf<String>()
                 history.add("Tutor found problem statement: ${currentState.initialProblemStatement}")
@@ -502,7 +504,8 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
 
         viewModelScope.launch {
             val fullPrompt = "$systemPrompt\n\nHere is the student's message:\n$currentText"
-            Log.d(TAG, "Sending prompt to LLM (first 200 chars): ${fullPrompt.take(200)}")
+            val tokenCount = llmInference?.sizeInTokens(fullPrompt) ?: -1
+            Log.d(TAG, "LLM Prompt ($tokenCount tokens): $fullPrompt")
             var fullResponse = ""
 
             val bitmaps = imageUri?.let { uri ->
@@ -549,7 +552,8 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
         // Kick off the Socratic dialogue
         viewModelScope.launch {
             val socraticPrompt = systemPromptSocratic("Tutor found problem statement: $problemStatementFromTutor") + "\n\nNow, begin the conversation with a guiding question."
-            Log.d(TAG, "Kicking off Socratic dialogue with prompt (first 200 chars): ${socraticPrompt.take(200)}")
+            val tokenCount = llmInference?.sizeInTokens(socraticPrompt) ?: -1
+            Log.d(TAG, "LLM Prompt ($tokenCount tokens): $socraticPrompt")
             var fullResponse = ""
             runInference(
                 input = socraticPrompt,
