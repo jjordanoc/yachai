@@ -80,17 +80,30 @@ data class SideLengths(
 
 @Serializable
 data class AnimationArgs(
-    val sideLengths: SideLengths? = null,
-    val point: String?  = null,
+    @SerialName("AB") @Serializable(with = LenientStringSerializer::class) val ab: String? = null,
+    @SerialName("BC") @Serializable(with = LenientStringSerializer::class) val bc: String? = null,
+    @SerialName("AC") @Serializable(with = LenientStringSerializer::class) val ac: String? = null,
+    @SerialName("angle_A") @Serializable(with = LenientStringSerializer::class) val angleA: String? = null,
+    @SerialName("angle_C") @Serializable(with = LenientStringSerializer::class) val angleC: String? = null,
+    val point: String? = null,
     val type: String? = null,
     val segment: String? = null,
-    val label: String? = null
+    val label: String? = null,
+    val expression: String? = null
 )
 
 @Serializable
 data class AnimationCommand(
     val command: String,
     val args: AnimationArgs
+)
+
+@Serializable
+data class InterpretResponse(
+    @SerialName("problem_type") val problemType: String?,
+    @SerialName("tutor_message") val tutorMessage: String?,
+    val command: String?,
+    val args: AnimationArgs?
 )
 
 @Serializable
@@ -127,50 +140,46 @@ data class WhiteboardState(
 val systemPromptInterpret = """
 Eres un tutor de matemáticas interactivo. Tu tarea es:
 
-1. Leer el enunciado de un problema (puede venir de texto o imagen).
-2. Clasificar el problema según su área matemática general.
-3. Interpretar el problema y verificar con el estudiante si tu interpretación es correcta.
-4. Representar visualmente los elementos relevantes en la pizarra.
+1. Leer el enunciado del problema (texto o imagen).
+2. Clasificar el problema en un área matemática general.
+3. Confirmar con el estudiante si entendiste bien el problema.
+4. Si es posible, representar visualmente los elementos relevantes en la pizarra.
 
-Tu salida debe ser un único objeto JSON con esta estructura:
+Tu salida debe ser un único objeto JSON con esta estructura exacta:
 
 {
   "problem_type": "TIPO_GENERAL",
   "tutor_message": "PREGUNTA EN ESPAÑOL QUE CONFIRME TU INTERPRETACIÓN",
-  "hint": "AYUDA OPCIONAL EN ESPAÑOL",
-  "animation": [ { "command": ..., "args": { ... } } ]
+  "command": "NOMBRE_DEL_COMANDO",
+  "args": { ... }
 }
 
 ### Reglas:
 
-- El campo "problem_type" debe ser uno de los siguientes (usa solo estos valores exactos):
+- El campo **"problem_type"** debe ser uno de los siguientes (usa solo estos valores exactos):
   - "aritmética"
   - "álgebra"
   - "geometría"
-  - "medición"
-  - "estadística"
-  - "probabilidad"
-  - "números y operaciones"
-  - "funciones"
-  - "razonamiento lógico"
-  - "otros" (si no encaja claramente en otra categoría)
 
-- "tutor_message" debe estar en español claro y debe confirmar si entendiste correctamente el problema.
-- Usa una animación relevante si el problema es visual (por ejemplo, en geometría).
-- No des la solución, solo representa el problema.
-- No expliques fuera del JSON.
-- Solo puedes usar comandos de animación si el tipo de problema es "geometría" o "medición", y debes limitarte a los siguientes:
+- El campo **"tutor_message"** debe estar en español claro y preguntar si la interpretación es correcta.
+- Solo usa comandos si **problem_type = "geometría"**.
+- Usa máximo **1 comando de animación**.
+- No des la solución. Solo representa el problema.
+- No escribas nada fuera del objeto JSON.
 
-  1. drawRightTriangle
-     - args: { sideLengths: { "AB": ..., "BC": ..., "AC": ... } }
+### Comando disponible para geometría:
 
-  2. highlightSide
-     - args: { segment: "AB" | "BC" | "AC", label (opcional) }
-
-  3. highlightAngle
-     - args: { point: "A" | "B" | "C", type (opcional): "right" }
-
-No escribas nada fuera del objeto JSON.
+- **drawRightTriangle**
+  - Dibuja un triángulo rectángulo con ángulo recto en el punto **B**
+  - args: {
+      "AB": número o "x",
+      "BC": número o "x",
+      "AC": número o "x",
+      "angle_A" (opcional): número en grados,
+      "angle_C" (opcional): número en grados
+    }
+  - **AC** es la hipotenusa (entre puntos A y C).
+  - **AB** y **BC** son los catetos.
 """.trimIndent()
 
 fun systemPromptSocratic(chatHistory: String): String {
@@ -321,17 +330,44 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
     fun processLlmResponse(jsonString: String) {
         Log.d(TAG, "Processing LLM response: $jsonString")
         try {
-            val response = json.decodeFromString<LlmResponse>(jsonString)
+            val startIndex = jsonString.indexOf('{')
+            val endIndex = jsonString.lastIndexOf('}')
+            val cleanJsonString = if (startIndex != -1 && endIndex > startIndex) {
+                jsonString.substring(startIndex, endIndex + 1)
+            } else {
+                Log.w(TAG, "Could not find a valid JSON object in the response. Trying to parse as is.")
+                jsonString
+            }
+
+            val currentState = _uiState.value
+
+            // Adapt parsing based on flow state
+            val response: LlmResponse = if (currentState.flowState == WhiteboardFlowState.INTERPRETING) {
+                val interpretResponse = json.decodeFromString<InterpretResponse>(cleanJsonString)
+                LlmResponse(
+                    tutorMessage = interpretResponse.tutorMessage,
+                    hint = null,
+                    animation = if (interpretResponse.command != null && interpretResponse.args != null) {
+                        listOf(AnimationCommand(interpretResponse.command, interpretResponse.args))
+                    } else {
+                        emptyList()
+                    }
+                )
+            } else {
+                json.decodeFromString<LlmResponse>(cleanJsonString)
+            }
+
             Log.d(TAG, "LLM response parsed successfully: $response")
 
-            _uiState.update { currentState ->
-                var currentTriangle = currentState.items.filterIsInstance<WhiteboardItem.AnimatedTriangle>().firstOrNull()
+            _uiState.update { state ->
+                var currentTriangle = state.items.filterIsInstance<WhiteboardItem.AnimatedTriangle>().firstOrNull()
 
                 for (command in response.animation) {
                     when (command.command) {
                         "drawRightTriangle" -> {
-                            command.args.sideLengths?.let { sideLengths ->
-                                Log.d(TAG, "drawRightTriangle command found with args: ${command.args}")
+                            command.args.let { args ->
+                                Log.d(TAG, "drawRightTriangle command found with args: $args")
+                                val sideLengths = SideLengths(ac = args.ac, ab = args.ab, bc = args.bc)
                                 val sideAB = sideLengths.ab?.toFloatOrNull() ?: 5f
                                 val sideAC = sideLengths.ac?.toFloatOrNull() ?: 13f
                                 val sideBC = sqrt(sideAC * sideAC - sideAB * sideAB)
@@ -370,17 +406,17 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                     }
                 }
 
-                val newFlowState = if (currentState.flowState == WhiteboardFlowState.INTERPRETING) {
+                val newFlowState = if (state.flowState == WhiteboardFlowState.INTERPRETING) {
                     WhiteboardFlowState.AWAITING_CONFIRMATION
                 } else {
-                    currentState.flowState
+                    state.flowState
                 }
 
                 Log.d(TAG, "Updating flow state to $newFlowState")
 
                 if (currentTriangle != null) {
-                    val otherItems = currentState.items.filterNot { it is WhiteboardItem.AnimatedTriangle }
-                    currentState.copy(
+                    val otherItems = state.items.filterNot { it is WhiteboardItem.AnimatedTriangle }
+                    state.copy(
                         items = otherItems + currentTriangle!!,
                         tutorMessage = response.tutorMessage,
                         hint = response.hint,
@@ -389,7 +425,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                         Log.d(TAG, "State updated with new triangle and tutor message.")
                     }
                 } else {
-                    currentState.copy(
+                    state.copy(
                         tutorMessage = response.tutorMessage,
                         hint = response.hint,
                         flowState = newFlowState
