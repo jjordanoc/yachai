@@ -1,6 +1,7 @@
-package com.jjordanoc.yachai.ui.screens
+package com.jjordanoc.yachai.llm
 
 import android.graphics.Bitmap
+import com.jjordanoc.yachai.ui.screens.ResultListener
 import com.jjordanoc.yachai.utils.api.AzureOpenAIClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

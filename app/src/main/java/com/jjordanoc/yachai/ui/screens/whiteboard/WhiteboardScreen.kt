@@ -1,4 +1,4 @@
-package com.jjordanoc.yachai.ui.screens
+package com.jjordanoc.yachai.ui.screens.whiteboard
 
 import android.graphics.Paint
 import android.speech.tts.TextToSpeech
@@ -27,7 +27,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.FloatingActionButton
@@ -74,10 +73,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jjordanoc.yachai.utils.TAG
 import java.util.Locale
-import kotlin.math.sqrt
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
@@ -86,18 +83,15 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import coil.compose.rememberAsyncImagePainter
-import androidx.core.content.FileProvider
-import java.io.File
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.core.content.ContextCompat
 import android.Manifest
+import android.app.Application
 import android.content.pm.PackageManager
 import android.widget.Toast
-import kotlinx.coroutines.launch
 import com.canhub.cropper.CropImageContract
 import com.canhub.cropper.CropImageContractOptions
 import com.canhub.cropper.CropImageOptions
-import com.canhub.cropper.CropImageView
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.material3.CircularProgressIndicator
 
@@ -114,7 +108,7 @@ private fun Offset.lerp(other: Offset, fraction: Float): Offset {
 fun WhiteboardScreen(
     viewModel: WhiteboardViewModel = viewModel(
         factory = WhiteboardViewModelFactory(
-            LocalContext.current.applicationContext as android.app.Application
+            LocalContext.current.applicationContext as Application
         )
     )
 ) {

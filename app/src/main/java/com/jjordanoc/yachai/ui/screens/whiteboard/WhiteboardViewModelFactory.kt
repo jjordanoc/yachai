@@ -1,4 +1,4 @@
-package com.jjordanoc.yachai.ui.screens
+package com.jjordanoc.yachai.ui.screens.whiteboard
 
 import android.app.Application
 import androidx.lifecycle.ViewModel

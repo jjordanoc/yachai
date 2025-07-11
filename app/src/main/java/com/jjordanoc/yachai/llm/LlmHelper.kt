@@ -1,8 +1,9 @@
-package com.jjordanoc.yachai.ui.screens
+package com.jjordanoc.yachai.llm
 
 import android.content.Context
 import android.graphics.Bitmap
 import com.jjordanoc.yachai.data.ModelConfig
+import com.jjordanoc.yachai.ui.screens.ResultListener
 
 object LlmHelper {
     private var activeDataSource: LlmDataSource? = null

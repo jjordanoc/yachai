@@ -1,8 +1,9 @@
-package com.jjordanoc.yachai.ui.screens
+package com.jjordanoc.yachai.llm
 
 import android.graphics.Bitmap
 
 typealias ResultListener = (partialResult: String, done: Boolean) -> Unit
+
 
 interface LlmDataSource {
     suspend fun initialize()
@@ -13,4 +14,4 @@ interface LlmDataSource {
     )
     fun sizeInTokens(text: String): Int
     fun cleanUp()
-} 
+}

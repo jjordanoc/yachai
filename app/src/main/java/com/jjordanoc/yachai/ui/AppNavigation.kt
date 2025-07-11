@@ -1,14 +1,11 @@
 package com.jjordanoc.yachai.ui
 
 import androidx.compose.runtime.Composable
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import com.jjordanoc.yachai.ui.screens.*
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
+import com.jjordanoc.yachai.ui.screens.whiteboard.WhiteboardScreen
 
 object Routes {
     const val SPLASH_SCREEN = "splash"

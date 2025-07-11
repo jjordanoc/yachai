@@ -1,4 +1,4 @@
-package com.jjordanoc.yachai.ui.screens
+package com.jjordanoc.yachai.llm
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -8,12 +8,10 @@ import com.google.mediapipe.tasks.genai.llminference.GraphOptions
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
 import com.jjordanoc.yachai.data.ModelConfig
-import com.jjordanoc.yachai.utils.TAG
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import com.jjordanoc.yachai.ui.screens.ResultListener
 
 private const val LLM_TAG = "YachAIMediaPipeDataSource"
+
 
 class MediaPipeLlmDataSource(
     private val context: Context,
@@ -98,4 +96,4 @@ class MediaPipeLlmDataSource(
         llmInference?.close()
         Log.d(LLM_TAG, "MediaPipe cleanup completed.")
     }
-} 
+}
