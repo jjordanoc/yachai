@@ -1,6 +1,6 @@
 package com.jjordanoc.yachai.ui.screens.whiteboard.model
 
-import com.jjordanoc.yachai.ui.screens.whiteboard.LenientStringSerializer
+import com.jjordanoc.yachai.ui.screens.whiteboard.serialization.LenientStringSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 

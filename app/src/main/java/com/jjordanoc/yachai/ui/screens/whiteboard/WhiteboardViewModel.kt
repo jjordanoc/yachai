@@ -27,6 +27,8 @@ import com.jjordanoc.yachai.ui.screens.whiteboard.model.SideLengths
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardItem
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardState
 
+private const val GRID_SIZE = 9
+
 enum class WhiteboardFlowState {
     INITIAL,
     INTERPRETING,
@@ -77,6 +79,17 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
         Log.d(TAG, "WhiteboardViewModel cleared and LlmHelper cleaned up.")
     }
 
+    private fun getNextGridPosition(state: WhiteboardState): Pair<Int, Int>? {
+        for (row in 0 until GRID_SIZE) {
+            for (col in 0 until GRID_SIZE) {
+                if (!state.gridItems.containsKey(row to col)) {
+                    return row to col
+                }
+            }
+        }
+        return null // Grid is full
+    }
+
     fun processLlmResponse(jsonString: String) {
         Log.d(TAG, "Processing LLM response: $jsonString")
 
@@ -117,9 +130,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
             Log.d(TAG, "LLM response parsed successfully: $response")
 
             _uiState.update { state ->
-                var currentTriangle = state.items.filterIsInstance<WhiteboardItem.AnimatedTriangle>().firstOrNull()
-                var currentExpressions = state.expressions
-                var currentNumberLine = state.items.filterIsInstance<WhiteboardItem.AnimatedNumberLine>().firstOrNull()
+                var newGridItems = state.gridItems.toMutableMap()
 
                 for (command in response.animation) {
                     when (command.command) {
@@ -137,56 +148,74 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                                 val pointB = Offset.Zero
                                 val pointC = Offset(sideBC * drawScale, 0f)
 
-                                currentTriangle = WhiteboardItem.AnimatedTriangle(
+                                val triangle = WhiteboardItem.AnimatedTriangle(
                                     a = pointA,
                                     b = pointB,
                                     c = pointC,
                                     sideLengths = sideLengths
                                 )
+                                getNextGridPosition(state.copy(gridItems = newGridItems))?.let { pos ->
+                                    newGridItems[pos] = triangle
+                                } ?: Log.w(TAG, "Whiteboard grid is full, cannot draw triangle.")
                             }
                         }
                         "highlightSide" -> {
                             command.args.segment?.let { segment ->
                                 Log.d(TAG, "highlightSide command found with segment: $segment")
-                                currentTriangle = currentTriangle?.copy(
-                                    highlightedSides = (currentTriangle?.highlightedSides ?: emptyList()) + segment
-                                )
+                                newGridItems = newGridItems.mapValues { (_, item) ->
+                                    if (item is WhiteboardItem.AnimatedTriangle) {
+                                        item.copy(highlightedSides = (item.highlightedSides) + segment)
+                                    } else {
+                                        item
+                                    }
+                                }.toMutableMap()
                             }
                         }
                         "highlightAngle" -> {
                             command.args.point?.let { point ->
                                 Log.d(TAG, "highlightAngle command found with point: $point")
-                                currentTriangle = currentTriangle?.copy(highlightedAngle = point)
+                                newGridItems = newGridItems.mapValues { (_, item) ->
+                                    if (item is WhiteboardItem.AnimatedTriangle) {
+                                        item.copy(highlightedAngle = point)
+                                    } else {
+                                        item
+                                    }
+                                }.toMutableMap()
                             }
                         }
                         "appendExpression" -> {
                             command.args.expression?.let { expression ->
                                 Log.d(TAG, "appendExpression command found with expression: $expression")
-                                if (currentExpressions.size < 9) {
-                                    currentExpressions = currentExpressions + expression
-                                } else {
-                                    Log.w(TAG, "Cannot add more expressions, whiteboard is full.")
-                                }
+                                getNextGridPosition(state.copy(gridItems = newGridItems))?.let { pos ->
+                                    newGridItems[pos] = WhiteboardItem.Expression(expression)
+                                } ?: Log.w(TAG, "Whiteboard grid is full, cannot add expression.")
                             }
                         }
                         "drawNumberLine" -> {
                             command.args.let { args ->
                                 if (args.range != null && args.marks != null && args.highlight != null) {
                                     Log.d(TAG, "drawNumberLine command found with args: $args")
-                                    currentNumberLine = WhiteboardItem.AnimatedNumberLine(
+                                    val numberLine = WhiteboardItem.AnimatedNumberLine(
                                         range = args.range,
                                         marks = args.marks,
                                         highlight = args.highlight
                                     )
+                                    getNextGridPosition(state.copy(gridItems = newGridItems))?.let { pos ->
+                                        newGridItems[pos] = numberLine
+                                    } ?: Log.w(TAG, "Whiteboard grid is full, cannot draw number line.")
                                 }
                             }
                         }
                         "updateNumberLine" -> {
                             command.args.highlight?.let { highlight ->
                                 Log.d(TAG, "updateNumberLine command found with highlight: $highlight")
-                                currentNumberLine = currentNumberLine?.copy(
-                                    highlight = highlight
-                                )
+                                newGridItems = newGridItems.mapValues { (_, item) ->
+                                    if (item is WhiteboardItem.AnimatedNumberLine) {
+                                        item.copy(highlight = highlight)
+                                    } else {
+                                        item
+                                    }
+                                }.toMutableMap()
                             }
                         }
                         else -> {
@@ -203,20 +232,11 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
 
                 Log.d(TAG, "Updating flow state to $newFlowState")
 
-                val newItems = state.items.filterNot { it is WhiteboardItem.AnimatedTriangle || it is WhiteboardItem.AnimatedNumberLine }
-                if (currentTriangle != null) {
-                    newItems.plus(currentTriangle)
-                }
-                if (currentNumberLine != null) {
-                    newItems.plus(currentNumberLine)
-                }
-
                 state.copy(
-                    items = newItems,
+                    gridItems = newGridItems,
                     tutorMessage = response.tutorMessage,
                     hint = response.hint,
-                    flowState = newFlowState,
-                    expressions = currentExpressions
+                    flowState = newFlowState
                 ).also {
                     Log.d(TAG, "State updated with new tutor message.")
                 }
@@ -367,12 +387,11 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
         _uiState.update {
             it.copy(
                 flowState = WhiteboardFlowState.INITIAL,
-                items = emptyList(),
+                gridItems = emptyMap(),
                 tutorMessage = null,
                 hint = null,
                 initialProblemStatement = "",
-                showConfirmationFailureMessage = true,
-                expressions = emptyList()
+                showConfirmationFailureMessage = true
             ).also {
                 Log.d(TAG, "State reset after rejection.")
             }

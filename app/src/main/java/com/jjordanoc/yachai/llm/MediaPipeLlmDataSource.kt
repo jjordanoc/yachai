@@ -8,7 +8,7 @@ import com.google.mediapipe.tasks.genai.llminference.GraphOptions
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
 import com.jjordanoc.yachai.data.ModelConfig
-import com.jjordanoc.yachai.ui.screens.ResultListener
+import com.jjordanoc.yachai.llm.ResultListener
 
 private const val LLM_TAG = "YachAIMediaPipeDataSource"
 

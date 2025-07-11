@@ -94,7 +94,11 @@ import com.canhub.cropper.CropImageContractOptions
 import com.canhub.cropper.CropImageOptions
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.material3.CircularProgressIndicator
-
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardItem
+import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardState
+import com.jjordanoc.yachai.ui.screens.whiteboard.model.SideLengths
+import com.jjordanoc.yachai.ui.screens.whiteboard.WhiteboardViewModelFactory
 
 
 private fun Offset.lerp(other: Offset, fraction: Float): Offset {
@@ -324,7 +328,6 @@ fun MainWhiteboardContent(
     val transformState = rememberTransformableState { zoomChange, panChange, _ ->
         scale *= zoomChange
         offset += panChange
-//        Log.d(TAG, "Transform state changed: zoom=$zoomChange, pan=$panChange. New scale=$scale, offset=$offset")
     }
 
     val animationProgress = remember { Animatable(0f) }
@@ -380,16 +383,16 @@ fun MainWhiteboardContent(
     // --- End of TTS Setup ---
 
     // Find the triangle to animate from the state
-    val animatedTriangle = uiState.items.filterIsInstance<WhiteboardItem.AnimatedTriangle>().firstOrNull()
+    val animatedItem = uiState.gridItems.values.lastOrNull()
     val tutorMessageText = uiState.tutorMessage
 
-    LaunchedEffect(animatedTriangle) {
-        if (animatedTriangle != null) {
-            Log.d(TAG, "Starting whiteboard animation for triangle: $animatedTriangle")
+    LaunchedEffect(animatedItem) {
+        if (animatedItem != null) {
+            Log.d(TAG, "Starting whiteboard animation for item: $animatedItem")
             animationProgress.snapTo(0f) // Reset progress for new animations
             animationProgress.animateTo(
-                targetValue = 3f, // 3 segments: AB, BC, AC
-                animationSpec = tween(durationMillis = 3000, delayMillis = 500) // 1s per segment, 0.5s delay
+                targetValue = 3f, // Generic duration, can be adapted per item
+                animationSpec = tween(durationMillis = 3000, delayMillis = 500)
             )
         }
     }
@@ -466,126 +469,41 @@ fun MainWhiteboardContent(
                         translationY = offset.y
                     )
             ) {
-                if (animatedTriangle != null) {
-                    // --- Figure Calculation Phase ---
+                val gridSize = 9
+                val canvasWidth = size.width
+                val canvasHeight = size.height
+                val minDimension = minOf(canvasWidth, canvasHeight)
+                val cellPaddedSize = minDimension / gridSize
+                val cellPadding = cellPaddedSize * 0.1f
+                val cellSize = cellPaddedSize - (2 * cellPadding)
 
-                    // 1. Define relative points for the triangle
-                    val pA = animatedTriangle.b + animatedTriangle.a
-                    val pB = animatedTriangle.b
-                    val pC = animatedTriangle.b + animatedTriangle.c
+                // Center the entire grid
+                val gridTotalWidth = cellPaddedSize * gridSize
+                val gridTotalHeight = cellPaddedSize * gridSize
+                val gridOffsetX = (canvasWidth - gridTotalWidth) / 2f
+                val gridOffsetY = (canvasHeight - gridTotalHeight) / 2f
 
-                    // 2. Calculate the bounding box of the triangle figure
-                    val figureLeft = listOf(pA.x, pB.x, pC.x).minOrNull() ?: 0f
-                    val figureTop = listOf(pA.y, pB.y, pC.y).minOrNull() ?: 0f
-                    val figureRight = listOf(pA.x, pB.x, pC.x).maxOrNull() ?: 0f
-                    val figureBottom = listOf(pA.y, pB.y, pC.y).maxOrNull() ?: 0f
+                uiState.gridItems.forEach { (pos, item) ->
+                    val (row, col) = pos
+                    val cellTopLeft = Offset(
+                        x = gridOffsetX + (col * cellPaddedSize) + cellPadding,
+                        y = gridOffsetY + (row * cellPaddedSize) + cellPadding
+                    )
 
-                    // 3. Calculate the final translation offset to center everything
-                    val totalWidth = figureRight - figureLeft
-                    val totalHeight = figureBottom - figureTop
-                    val canvasCenter = Offset(size.width / 2, size.height / 2)
-                    val centeringOffset = canvasCenter - Offset(figureLeft + totalWidth / 2, figureTop + totalHeight / 2)
-
-//                    Log.d(TAG, "Canvas: Centering triangle with offset: $centeringOffset")
-
-                    // --- Drawing Phase ---
-                    translate(left = centeringOffset.x, top = centeringOffset.y) {
-                        // Animate drawing the triangle sides
-                        val progress = animationProgress.value
-
-                        val highlightColor = Color(1f, 0.5f, 0f, pulseAlpha) // Bright Orange
-
-                        // Highlight Sides
-                        if (progress >= 3f) { // Only highlight after initial drawing
-                            animatedTriangle.highlightedSides.forEach { side ->
-                                when (side) {
-                                    "AB" -> drawLine(highlightColor, pB, pA, strokeWidth = pulseStrokeWidth, cap = StrokeCap.Round)
-                                    "BC" -> drawLine(highlightColor, pB, pC, strokeWidth = pulseStrokeWidth, cap = StrokeCap.Round)
-                                    "AC" -> drawLine(highlightColor, pA, pC, strokeWidth = pulseStrokeWidth, cap = StrokeCap.Round)
-                                }
-                            }
-                        }
-
-                        // Highlight Angle
-                        if (progress >= 3f && animatedTriangle.highlightedAngle == "B") {
-                            val angleSize = 40f
-                            val anglePath = Path().apply {
-                                moveTo(pB.x + angleSize, pB.y)
-                                lineTo(pB.x + angleSize, pB.y - angleSize)
-                                lineTo(pB.x, pB.y - angleSize)
-                            }
-                            drawPath(anglePath, highlightColor, style = Stroke(width = pulseStrokeWidth / 2f))
-                        }
-
-                        // Draw points A, B, C
-                        drawCircle(Color.Red, radius = 8f, center = pA)
-                        drawCircle(Color.Red, radius = 8f, center = pB)
-                        drawCircle(Color.Red, radius = 8f, center = pC)
-
-                        // Draw point labels
-                        drawIntoCanvas { canvas ->
-                            val nativeCanvas = canvas.nativeCanvas
-                            val labelPaint = Paint().apply {
-                                color = Color.Black.toArgb()
-                                textSize = 40f
-                                textAlign = Paint.Align.CENTER
-                            }
-                            nativeCanvas.drawText("A", pA.x, pA.y - 20f, labelPaint)
-                            nativeCanvas.drawText("B", pB.x - 20f, pB.y + 15f, labelPaint)
-                            nativeCanvas.drawText("C", pC.x + 20f, pC.y + 15f, labelPaint)
-                        }
-
-                        // Draw right angle indicator at B
-                        if (progress > 1) { // Draw after AB and BC start drawing
-                            val angleSize = 25f
-                            val rightAnglePath = Path().apply {
-                                moveTo(pB.x + angleSize, pB.y)
-                                lineTo(pB.x + angleSize, pB.y - angleSize)
-                                lineTo(pB.x, pB.y - angleSize)
-                            }
-                            drawPath(rightAnglePath, Color.Gray, style = Stroke(width = 3f))
-                        }
-
-                        // Draw side AB
-                        if (progress > 0) {
-                            val lineProgress = progress.coerceAtMost(1f)
-                            drawLine(Color.Blue, pB, pB.lerp(pA, lineProgress), strokeWidth = 5f)
-                        }
-
-                        // Draw side BC
-                        if (progress > 1) {
-                            val lineProgress = (progress - 1).coerceAtMost(1f)
-                            drawLine(Color.Blue, pB, pB.lerp(pC, lineProgress), strokeWidth = 5f)
-                        }
-
-                        // Draw side AC (hypotenuse)
-                        if (progress > 2) {
-                            val lineProgress = (progress - 2).coerceAtMost(1f)
-                            drawLine(Color.Blue, pA, pA.lerp(pC, lineProgress), strokeWidth = 5f)
-                        }
-
-                        // Draw side length labels
-                        drawIntoCanvas { canvas ->
-                            val nativeCanvas = canvas.nativeCanvas
-                            val textPaint = Paint().apply {
-                                color = Color.DarkGray.toArgb()
-                                textSize = 35f
-                                textAlign = Paint.Align.CENTER
-                            }
-
-                            val sideLengths = animatedTriangle.sideLengths
-                            val midAB = pB.lerp(pA, 0.5f)
-                            if (progress >= 1f) {
-                                nativeCanvas.drawText(sideLengths.ab ?: "", midAB.x - 30f, midAB.y, textPaint)
-                            }
-                            val midBC = pB.lerp(pC, 0.5f)
-                            if (progress >= 2f) {
-                                nativeCanvas.drawText(sideLengths.bc ?: "", midBC.x, midBC.y + 40f, textPaint)
-                            }
-                            val midAC = pA.lerp(pC, 0.5f)
-                            if (progress >= 3f) {
-                                nativeCanvas.drawText(sideLengths.ac ?: "", midAC.x + 25f, midAC.y - 15f, textPaint)
-                            }
+                    translate(left = cellTopLeft.x, top = cellTopLeft.y) {
+                        when (item) {
+                            is WhiteboardItem.AnimatedTriangle -> drawTriangle(
+                                item,
+                                Size(cellSize, cellSize),
+                                animationProgress.value,
+                                pulseAlpha,
+                                pulseStrokeWidth
+                            )
+                            is WhiteboardItem.AnimatedNumberLine -> { /* TODO: Draw Number Line */ }
+                            is WhiteboardItem.Expression -> drawExpression(
+                                item,
+                                Size(cellSize, cellSize)
+                            )
                         }
                     }
                 }
@@ -604,39 +522,150 @@ fun MainWhiteboardContent(
                     )
                 )
             }
-            // Expressions Overlay
-            ExpressionsList(expressions = uiState.expressions)
         }
     }
 }
 
-@Composable
-private fun ExpressionsList(expressions: List<String>) {
-    if (expressions.isNotEmpty()) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 16.dp, end = 16.dp),
-            contentAlignment = Alignment.TopEnd
-        ) {
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
-                tonalElevation = 2.dp
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    expressions.forEach { expression ->
-                        Text(
-                            text = expression,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+private fun DrawScope.drawExpression(item: WhiteboardItem.Expression, size: Size) {
+    drawIntoCanvas { canvas ->
+        val nativeCanvas = canvas.nativeCanvas
+        val textPaint = Paint().apply {
+            color = Color.Black.toArgb()
+            textSize = size.height / 8f // Dynamic text size
+            textAlign = Paint.Align.CENTER
+        }
+        val textX = size.width / 2f
+        val textY = size.height / 2f
+        nativeCanvas.drawText(item.text, textX, textY, textPaint)
+    }
+}
+
+private fun DrawScope.drawTriangle(
+    animatedTriangle: WhiteboardItem.AnimatedTriangle,
+    size: Size,
+    progress: Float,
+    pulseAlpha: Float,
+    pulseStrokeWidth: Float
+) {
+    // --- Figure Calculation Phase ---
+    val figureScale = minOf(size.width, size.height) / (animatedTriangle.c.x * 1.1f)
+
+    // 1. Define relative points for the triangle, scaled to fit the cell
+    val pA = (animatedTriangle.b + animatedTriangle.a) * figureScale
+    val pB = animatedTriangle.b * figureScale
+    val pC = animatedTriangle.c * figureScale
+
+    // 2. Calculate the bounding box of the triangle figure
+    val figureLeft = listOf(pA.x, pB.x, pC.x).minOrNull() ?: 0f
+    val figureTop = listOf(pA.y, pB.y, pC.y).minOrNull() ?: 0f
+    val figureRight = listOf(pA.x, pB.x, pC.x).maxOrNull() ?: 0f
+    val figureBottom = listOf(pA.y, pB.y, pC.y).maxOrNull() ?: 0f
+
+    // 3. Calculate the final translation offset to center everything
+    val totalWidth = figureRight - figureLeft
+    val totalHeight = figureBottom - figureTop
+    val cellCenter = Offset(size.width / 2, size.height / 2)
+    val centeringOffset = cellCenter - Offset(figureLeft + totalWidth / 2, figureTop + totalHeight / 2)
+
+    // --- Drawing Phase ---
+    translate(left = centeringOffset.x, top = centeringOffset.y) {
+        val highlightColor = Color(1f, 0.5f, 0f, pulseAlpha) // Bright Orange
+
+        // Highlight Sides
+        if (progress >= 3f) { // Only highlight after initial drawing
+            animatedTriangle.highlightedSides.forEach { side ->
+                when (side) {
+                    "AB" -> drawLine(highlightColor, pB, pA, strokeWidth = pulseStrokeWidth, cap = StrokeCap.Round)
+                    "BC" -> drawLine(highlightColor, pB, pC, strokeWidth = pulseStrokeWidth, cap = StrokeCap.Round)
+                    "AC" -> drawLine(highlightColor, pA, pC, strokeWidth = pulseStrokeWidth, cap = StrokeCap.Round)
                 }
+            }
+        }
+
+        // Highlight Angle
+        if (progress >= 3f && animatedTriangle.highlightedAngle == "B") {
+            val angleSize = 20f
+            val anglePath = Path().apply {
+                moveTo(pB.x + angleSize, pB.y)
+                lineTo(pB.x + angleSize, pB.y - angleSize)
+                lineTo(pB.x, pB.y - angleSize)
+            }
+            drawPath(anglePath, highlightColor, style = Stroke(width = pulseStrokeWidth / 2f))
+        }
+
+        // Draw points A, B, C
+        drawCircle(Color.Red, radius = 4f, center = pA)
+        drawCircle(Color.Red, radius = 4f, center = pB)
+        drawCircle(Color.Red, radius = 4f, center = pC)
+
+        // Draw point labels
+        drawIntoCanvas { canvas ->
+            val nativeCanvas = canvas.nativeCanvas
+            val labelPaint = Paint().apply {
+                color = Color.Black.toArgb()
+                textSize = 20f
+                textAlign = Paint.Align.CENTER
+            }
+            nativeCanvas.drawText("A", pA.x, pA.y - 10f, labelPaint)
+            nativeCanvas.drawText("B", pB.x - 10f, pB.y + 10f, labelPaint)
+            nativeCanvas.drawText("C", pC.x + 10f, pC.y + 10f, labelPaint)
+        }
+
+        // Draw right angle indicator at B
+        if (progress > 1) { // Draw after AB and BC start drawing
+            val angleSize = 15f
+            val rightAnglePath = Path().apply {
+                moveTo(pB.x + angleSize, pB.y)
+                lineTo(pB.x + angleSize, pB.y - angleSize)
+                lineTo(pB.x, pB.y - angleSize)
+            }
+            drawPath(rightAnglePath, Color.Gray, style = Stroke(width = 2f))
+        }
+
+        // Draw side AB
+        if (progress > 0) {
+            val lineProgress = progress.coerceAtMost(1f)
+            drawLine(Color.Blue, pB, pB.lerp(pA, lineProgress), strokeWidth = 3f)
+        }
+
+        // Draw side BC
+        if (progress > 1) {
+            val lineProgress = (progress - 1).coerceAtMost(1f)
+            drawLine(Color.Blue, pB, pB.lerp(pC, lineProgress), strokeWidth = 3f)
+        }
+
+        // Draw side AC (hypotenuse)
+        if (progress > 2) {
+            val lineProgress = (progress - 2).coerceAtMost(1f)
+            drawLine(Color.Blue, pA, pA.lerp(pC, lineProgress), strokeWidth = 3f)
+        }
+
+        // Draw side length labels
+        drawIntoCanvas { canvas ->
+            val nativeCanvas = canvas.nativeCanvas
+            val textPaint = Paint().apply {
+                color = Color.DarkGray.toArgb()
+                textSize = 18f
+                textAlign = Paint.Align.CENTER
+            }
+
+            val sideLengths = animatedTriangle.sideLengths
+            val midAB = pB.lerp(pA, 0.5f)
+            if (progress >= 1f) {
+                sideLengths.ab?.let { nativeCanvas.drawText(it, midAB.x - 15f, midAB.y, textPaint) }
+            }
+            val midBC = pB.lerp(pC, 0.5f)
+            if (progress >= 2f) {
+                sideLengths.bc?.let { nativeCanvas.drawText(it, midBC.x, midBC.y + 20f, textPaint) }
+            }
+            val midAC = pA.lerp(pC, 0.5f)
+            if (progress >= 3f) {
+                sideLengths.ac?.let { nativeCanvas.drawText(it, midAC.x + 15f, midAC.y - 8f, textPaint) }
             }
         }
     }
 }
+
 
 @Composable
 private fun TutorOverlay(
