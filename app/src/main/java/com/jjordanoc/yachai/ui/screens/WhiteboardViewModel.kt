@@ -84,7 +84,10 @@ data class AnimationArgs(
     val type: String? = null,
     val segment: String? = null,
     val label: String? = null,
-    val expression: String? = null
+    val expression: String? = null,
+    val range: List<Int>? = null,
+    val marks: List<Int>? = null,
+    val highlight: List<Int>? = null
 )
 
 @Serializable
@@ -118,6 +121,11 @@ sealed class WhiteboardItem {
         val highlightedSides: List<String> = emptyList(),
         val highlightedAngle: String? = null
     ) : WhiteboardItem()
+    data class AnimatedNumberLine(
+        val range: List<Int>,
+        val marks: List<Int>,
+        val highlight: List<Int>
+    ) : WhiteboardItem()
 }
 
 data class WhiteboardState(
@@ -137,10 +145,9 @@ data class WhiteboardState(
 val systemPromptInterpret = """
 Eres un tutor de matemáticas interactivo. Tu tarea es:
 
-1. Leer el enunciado del problema (texto o imagen).
+1. Leer el enunciado del problema (texto o imagen) y repetirlo textualmente.
 2. Clasificar el problema en un área matemática general.
-3. Confirmar con el estudiante si entendiste bien el problema.
-4. Si es posible, representar visualmente los elementos relevantes en la pizarra.
+3. Siempre que sea posible, representar visualmente los elementos relevantes del problema en la pizarra.
 
 Tu salida debe ser un único objeto JSON con esta estructura exacta:
 
@@ -158,7 +165,7 @@ Tu salida debe ser un único objeto JSON con esta estructura exacta:
   - "álgebra"
   - "geometría"
 
-- El campo **"tutor_message"** debe estar en español claro y preguntar si tu interpretación del problema es correcta.
+- El campo **"tutor_message"** debe estar en español claro y repetir el enunciado del problema.
 - Solo usa comandos si **problem_type = "geometría"**.
 - Usa máximo **1 comando de animación**.
 - No des la solución. Solo representa el problema.
@@ -233,6 +240,57 @@ Responde con un único objeto JSON en el siguiente formato:
 """.trimIndent()
 }
 
+
+fun systemPromptSocraticArithmetic(chatHistory: String): String {
+    return """
+Eres un tutor de matemáticas excepcional, especializado en enseñanza visual y socrática. Tu principal objetivo es ayudar a los estudiantes a entender conceptos de aritmética y álgebra básica a través de animaciones interactivas y preguntas guiadas.
+
+### Tu Filosofía de Enseñanza: "Mostrar, no solo decir"
+- **Prioriza la explicación gráfica:** Siempre que sea posible, cada pregunta que hagas debe estar acompañada por una o más animaciones que ilustren el concepto.
+- **La animación es la protagonista:** Usa las animaciones como el punto de partida para tus preguntas socráticas. El texto que escribas debe servir para guiar la atención del estudiante hacia la animación.
+- **Estilo Socrático Visual:** No des respuestas directas. En su lugar, crea una animación y luego haz una pregunta sobre ella que guíe al estudiante a descubrir la respuesta por sí mismo.
+
+### Contexto:
+Tienes acceso al historial de los últimos dos turnos de conversación. Cada turno contiene lo que el estudiante dijo y lo que tú mostraste anteriormente (mensaje, pista y animaciones).
+
+### Historial reciente:
+$chatHistory
+
+### Tu Tarea:
+Basado en el historial y la última respuesta del estudiante, diseña una respuesta visual y textual que lo guíe al siguiente paso lógico. Tu herramienta principal es la animación.
+
+### Comandos de animación permitidos:
+**Debes usar al menos una animación en cada respuesta**, a menos que sea conceptualmente imposible.
+
+1. **appendExpression**
+   args:
+     expression: expresión nueva que se añade a la pizarra como "5 + 3 = 8"
+
+2. **drawNumberLine**
+   args: {
+       "range": [inicio, fin],
+       "marks": [marcas en la recta],
+       "highlight": [puntos a resaltar]
+     }
+
+### Formato de salida (debes seguirlo exactamente):
+Responde con un único objeto JSON en el siguiente formato:
+
+{
+  "tutor_message": "TEXTO EN ESPAÑOL",
+  "hint": "TEXTO EN ESPAÑOL",
+  "animation": [
+    { "command": "COMANDO", "args": { ... } }
+  ]
+}
+
+### Instrucciones finales:
+- No incluyas explicaciones fuera del JSON.
+- Toda la comunicación visible debe estar en español.
+- Mantén un tono amigable, motivador y guiado por preguntas.
+- **Enfócate en lo visual**. Haz que las animaciones hagan el trabajo pesado de la explicación.
+""".trimIndent()
+}
 
 class WhiteboardViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -319,6 +377,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
             _uiState.update { state ->
                 var currentTriangle = state.items.filterIsInstance<WhiteboardItem.AnimatedTriangle>().firstOrNull()
                 var currentExpressions = state.expressions
+                var currentNumberLine = state.items.filterIsInstance<WhiteboardItem.AnimatedNumberLine>().firstOrNull()
 
                 for (command in response.animation) {
                     when (command.command) {
@@ -368,6 +427,26 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                                 }
                             }
                         }
+                        "drawNumberLine" -> {
+                            command.args.let { args ->
+                                if (args.range != null && args.marks != null && args.highlight != null) {
+                                    Log.d(TAG, "drawNumberLine command found with args: $args")
+                                    currentNumberLine = WhiteboardItem.AnimatedNumberLine(
+                                        range = args.range,
+                                        marks = args.marks,
+                                        highlight = args.highlight
+                                    )
+                                }
+                            }
+                        }
+                        "updateNumberLine" -> {
+                            command.args.highlight?.let { highlight ->
+                                Log.d(TAG, "updateNumberLine command found with highlight: $highlight")
+                                currentNumberLine = currentNumberLine?.copy(
+                                    highlight = highlight
+                                )
+                            }
+                        }
                         else -> {
                             Log.w(TAG, "Unknown animation command: ${command.command}")
                         }
@@ -382,26 +461,22 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
 
                 Log.d(TAG, "Updating flow state to $newFlowState")
 
+                val newItems = state.items.filterNot { it is WhiteboardItem.AnimatedTriangle || it is WhiteboardItem.AnimatedNumberLine }
                 if (currentTriangle != null) {
-                    val otherItems = state.items.filterNot { it is WhiteboardItem.AnimatedTriangle }
-                    state.copy(
-                        items = otherItems + currentTriangle!!,
-                        tutorMessage = response.tutorMessage,
-                        hint = response.hint,
-                        flowState = newFlowState,
-                        expressions = currentExpressions
-                    ).also {
-                        Log.d(TAG, "State updated with new triangle and tutor message.")
-                    }
-                } else {
-                    state.copy(
-                        tutorMessage = response.tutorMessage,
-                        hint = response.hint,
-                        flowState = newFlowState,
-                        expressions = currentExpressions
-                    ).also {
-                        Log.d(TAG, "State updated with new tutor message, no triangle changes.")
-                    }
+                    newItems.plus(currentTriangle)
+                }
+                if (currentNumberLine != null) {
+                    newItems.plus(currentNumberLine)
+                }
+
+                state.copy(
+                    items = newItems,
+                    tutorMessage = response.tutorMessage,
+                    hint = response.hint,
+                    flowState = newFlowState,
+                    expressions = currentExpressions
+                ).also {
+                    Log.d(TAG, "State updated with new tutor message.")
                 }
             }
         } catch (e: Exception) {
@@ -452,7 +527,14 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                     history.add(lastTurn)
                 }
 
-                Triple(systemPromptSocratic(history.joinToString("\n\n---\n\n")), WhiteboardFlowState.SOCRATIC_TUTORING, currentState.initialProblemStatement)
+                val problemType = currentState.tutorMessage?.substringAfter("problem_type\": \"", "")?.substringBefore("\"", "")
+                val socraticPrompt = if (problemType == "aritmética") {
+                    systemPromptSocraticArithmetic(history.joinToString("\n\n---\n\n"))
+                } else {
+                    systemPromptSocratic(history.joinToString("\n\n---\n\n"))
+                }
+
+                Triple(socraticPrompt, WhiteboardFlowState.SOCRATIC_TUTORING, currentState.initialProblemStatement)
             }
             else -> {
                 Log.w(TAG, "onSendText called in unexpected state: ${currentState.flowState}")

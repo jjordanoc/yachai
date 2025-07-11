@@ -92,6 +92,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.core.content.ContextCompat
 import android.Manifest
 import android.content.pm.PackageManager
+import android.widget.Toast
 import kotlinx.coroutines.launch
 import com.canhub.cropper.CropImageContract
 import com.canhub.cropper.CropImageContractOptions
@@ -219,6 +220,17 @@ fun InitialWhiteboardScreen(
         )
     }
 
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                launchImageCropper()
+            } else {
+                Toast.makeText(context, "Camera permission is required", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
+
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -273,7 +285,19 @@ fun InitialWhiteboardScreen(
             ) {
                 // Button to launch image chooser & cropper
                 FloatingActionButton(
-                    onClick = { launchImageCropper() },
+                    onClick = {
+                        when (PackageManager.PERMISSION_GRANTED) {
+                            ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.CAMERA
+                            ) -> {
+                                launchImageCropper()
+                            }
+                            else -> {
+                                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                            }
+                        }
+                      },
                     containerColor = Color.Black,
                     contentColor = Color.White,
                     modifier = Modifier.width(64.dp).height(64.dp)
@@ -586,6 +610,36 @@ fun MainWhiteboardContent(
                     )
                 )
             }
+            // Expressions Overlay
+            ExpressionsList(expressions = uiState.expressions)
+        }
+    }
+}
+
+@Composable
+private fun ExpressionsList(expressions: List<String>) {
+    if (expressions.isNotEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 16.dp, end = 16.dp),
+            contentAlignment = Alignment.TopEnd
+        ) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                tonalElevation = 2.dp
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    expressions.forEach { expression ->
+                        Text(
+                            text = expression,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -793,6 +847,18 @@ private fun WhiteboardBottomBar(
         )
     }
 
+    val context = LocalContext.current
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                launchImageCropper()
+            } else {
+                Toast.makeText(context, "Camera permission is required", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
+
     Surface(
         tonalElevation = 3.dp,
         modifier = Modifier.fillMaxWidth()
@@ -807,8 +873,17 @@ private fun WhiteboardBottomBar(
                             .height(100.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .clickable {
-                                // Allow re-picking image
-                                launchImageCropper()
+                                when (PackageManager.PERMISSION_GRANTED) {
+                                    ContextCompat.checkSelfPermission(
+                                        context,
+                                        Manifest.permission.CAMERA
+                                    ) -> {
+                                        launchImageCropper()
+                                    }
+                                    else -> {
+                                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                    }
+                                }
                             }
                     )
                     IconButton(
@@ -833,7 +908,17 @@ private fun WhiteboardBottomBar(
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
                     onClick = {
-                        launchImageCropper()
+                        when (PackageManager.PERMISSION_GRANTED) {
+                            ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.CAMERA
+                            ) -> {
+                                launchImageCropper()
+                            }
+                            else -> {
+                                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                            }
+                        }
                     },
                     colors = IconButtonDefaults.iconButtonColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
