@@ -99,6 +99,10 @@ import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardItem
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardState
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.SideLengths
 import com.jjordanoc.yachai.ui.screens.whiteboard.WhiteboardViewModelFactory
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.collectLatest
 
 
 private fun Offset.lerp(other: Offset, fraction: Float): Offset {
@@ -326,8 +330,10 @@ fun MainWhiteboardContent(
     var offset by remember { mutableStateOf(Offset.Zero) }
 
     val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-        scale *= zoomChange
-        offset += panChange
+        val newScale = (scale * zoomChange).coerceIn(0.5f, 10f)
+        val scaleFactor = newScale / scale
+        scale = newScale
+        offset = offset * scaleFactor + panChange
     }
 
     val animationProgress = remember { Animatable(0f) }
@@ -382,9 +388,40 @@ fun MainWhiteboardContent(
     }
     // --- End of TTS Setup ---
 
-    // Find the triangle to animate from the state
     val animatedItem = uiState.gridItems.values.lastOrNull()
     val tutorMessageText = uiState.tutorMessage
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val canvasWidth = maxWidth.value
+        val canvasHeight = maxHeight.value
+
+        LaunchedEffect(canvasWidth, canvasHeight, uiState.gridItems) {
+            if (canvasWidth > 0 && uiState.gridItems.isNotEmpty()) {
+                val minDimension = minOf(canvasWidth, canvasHeight)
+                val cellPaddedSize = minDimension / 9f
+
+                // Center on the first item
+                val firstItemPos = uiState.gridItems.keys.first()
+                val (row, col) = firstItemPos
+
+                val desiredScale = 6f
+                scale = desiredScale
+
+                val gridTotalWidth = cellPaddedSize * 9
+                val gridTotalHeight = cellPaddedSize * 9
+                val gridOffsetX = (canvasWidth - gridTotalWidth) / 2f
+                val gridOffsetY = (canvasHeight - gridTotalHeight) / 2f
+
+                val cellTopLeft = Offset(
+                    x = gridOffsetX + (col * cellPaddedSize) + cellPaddedSize / 2f,
+                    y = gridOffsetY + (row * cellPaddedSize) + cellPaddedSize / 2f
+                )
+
+                val screenCenter = Offset(canvasWidth / 2f, canvasHeight / 2f)
+                offset = screenCenter - (cellTopLeft * desiredScale)
+            }
+        }
+    }
 
     LaunchedEffect(animatedItem) {
         if (animatedItem != null) {
