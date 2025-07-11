@@ -127,6 +127,7 @@ data class WhiteboardState(
     val initialProblemStatement: String = "",
     val tutorMessage: String? = null,
     val hint: String? = null,
+    val expressions: List<String> = emptyList(),
     val showConfirmationFailureMessage: Boolean = false,
     val selectedImageUri: Uri? = null,
     val isModelLoading: Boolean = true
@@ -317,6 +318,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
 
             _uiState.update { state ->
                 var currentTriangle = state.items.filterIsInstance<WhiteboardItem.AnimatedTriangle>().firstOrNull()
+                var currentExpressions = state.expressions
 
                 for (command in response.animation) {
                     when (command.command) {
@@ -356,6 +358,16 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                                 currentTriangle = currentTriangle?.copy(highlightedAngle = point)
                             }
                         }
+                        "appendExpression" -> {
+                            command.args.expression?.let { expression ->
+                                Log.d(TAG, "appendExpression command found with expression: $expression")
+                                if (currentExpressions.size < 9) {
+                                    currentExpressions = currentExpressions + expression
+                                } else {
+                                    Log.w(TAG, "Cannot add more expressions, whiteboard is full.")
+                                }
+                            }
+                        }
                         else -> {
                             Log.w(TAG, "Unknown animation command: ${command.command}")
                         }
@@ -376,7 +388,8 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                         items = otherItems + currentTriangle!!,
                         tutorMessage = response.tutorMessage,
                         hint = response.hint,
-                        flowState = newFlowState
+                        flowState = newFlowState,
+                        expressions = currentExpressions
                     ).also {
                         Log.d(TAG, "State updated with new triangle and tutor message.")
                     }
@@ -384,7 +397,8 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                     state.copy(
                         tutorMessage = response.tutorMessage,
                         hint = response.hint,
-                        flowState = newFlowState
+                        flowState = newFlowState,
+                        expressions = currentExpressions
                     ).also {
                         Log.d(TAG, "State updated with new tutor message, no triangle changes.")
                     }
@@ -533,7 +547,8 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                 tutorMessage = null,
                 hint = null,
                 initialProblemStatement = "",
-                showConfirmationFailureMessage = true
+                showConfirmationFailureMessage = true,
+                expressions = emptyList()
             ).also {
                 Log.d(TAG, "State reset after rejection.")
             }
