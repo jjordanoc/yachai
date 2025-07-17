@@ -1,4 +1,4 @@
-package com.jjordanoc.yachai.data
+package com.jjordanoc.yachai.llm.data
 
 enum class ModelDownloadStatusType {
     NOT_DOWNLOADED,      // Model hasn't been downloaded yet

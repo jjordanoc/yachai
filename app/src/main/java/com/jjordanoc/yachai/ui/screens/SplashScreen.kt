@@ -9,8 +9,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
-import com.jjordanoc.yachai.data.Models
-import com.jjordanoc.yachai.data.isDownloaded
+import com.jjordanoc.yachai.llm.data.Models
+import com.jjordanoc.yachai.llm.data.isDownloaded
 import com.jjordanoc.yachai.ui.Routes
 import kotlinx.coroutines.delay
 

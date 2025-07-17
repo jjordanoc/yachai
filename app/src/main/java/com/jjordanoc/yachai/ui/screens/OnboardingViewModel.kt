@@ -11,8 +11,9 @@ import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.jjordanoc.yachai.R
-import com.jjordanoc.yachai.data.ModelDownloadStatus
-import com.jjordanoc.yachai.data.ModelDownloadStatusType
+import com.jjordanoc.yachai.llm.data.Model
+import com.jjordanoc.yachai.llm.data.ModelDownloadStatus
+import com.jjordanoc.yachai.llm.data.ModelDownloadStatusType
 import com.jjordanoc.yachai.utils.TAG
 import com.jjordanoc.yachai.worker.ModelDownloadWorker
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,9 +34,12 @@ class OnboardingViewModel(application: Application) : AndroidViewModel(applicati
 
     private val workManager = WorkManager.getInstance(application)
 
-    fun downloadModel(model: com.jjordanoc.yachai.data.Model) {
+    fun downloadModel(model: Model) {
         viewModelScope.launch {
-            _downloadState.value = DownloadState.Downloading(ModelDownloadStatus(ModelDownloadStatusType.IN_PROGRESS))
+            _downloadState.value = DownloadState.Downloading(
+                ModelDownloadStatus(
+                    ModelDownloadStatusType.IN_PROGRESS)
+            )
 
             val inputData = Data.Builder()
                 .putString(ModelDownloadWorker.KEY_MODEL_NAME, model.name)

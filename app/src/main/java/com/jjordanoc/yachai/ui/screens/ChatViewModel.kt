@@ -14,9 +14,9 @@ import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.genai.llminference.GraphOptions
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
-import com.jjordanoc.yachai.data.ModelDownloadStatus
-import com.jjordanoc.yachai.data.Models
-import com.jjordanoc.yachai.data.getLocalPath
+import com.jjordanoc.yachai.llm.data.ModelDownloadStatus
+import com.jjordanoc.yachai.llm.data.Models
+import com.jjordanoc.yachai.llm.data.getLocalPath
 import com.jjordanoc.yachai.utils.TAG
 import com.jjordanoc.yachai.utils.SettingsManager
 import com.jjordanoc.yachai.utils.api.AzureOpenAIClient

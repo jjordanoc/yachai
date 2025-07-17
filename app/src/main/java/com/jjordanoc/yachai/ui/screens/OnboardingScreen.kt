@@ -16,7 +16,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.jjordanoc.yachai.data.Models
+import com.jjordanoc.yachai.llm.data.Models
 import com.jjordanoc.yachai.ui.Routes
 
 @Composable

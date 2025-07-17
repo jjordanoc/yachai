@@ -2,10 +2,11 @@ package com.jjordanoc.yachai.llm
 
 import android.content.Context
 import android.graphics.Bitmap
-import com.jjordanoc.yachai.data.ModelConfig
+import com.jjordanoc.yachai.llm.data.ModelConfig
 
 object LlmHelper {
     private var activeDataSource: LlmDataSource? = null
+        get() = field
 
     enum class DataSourceType {
         MEDIAPIPE,

@@ -15,10 +15,10 @@ import kotlin.math.sqrt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import android.net.Uri
-import com.jjordanoc.yachai.data.Models
-import com.jjordanoc.yachai.data.getLocalPath
+import com.jjordanoc.yachai.llm.data.Models
+import com.jjordanoc.yachai.llm.data.getLocalPath
 import com.jjordanoc.yachai.utils.SettingsManager
-import com.jjordanoc.yachai.data.ModelConfig
+import com.jjordanoc.yachai.llm.data.ModelConfig
 import com.jjordanoc.yachai.llm.LlmHelper
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.AnimationCommand
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.InterpretResponse

@@ -1,4 +1,4 @@
-package com.jjordanoc.yachai.data
+package com.jjordanoc.yachai.llm.data
 
 object Models {
     val GEMMA_3N_E2B_VISION = Model(

@@ -1,4 +1,4 @@
-package com.jjordanoc.yachai.data
+package com.jjordanoc.yachai.llm.data
 
 data class ModelConfig(
     val modelPath: String,
