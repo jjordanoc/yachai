@@ -290,7 +290,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
                 }
 
                 val problemType = currentState.tutorMessage?.substringAfter("problem_type\": \"", "")?.substringBefore("\"", "")
-                val socraticPrompt = if (problemType == "aritmética") {
+                val socraticPrompt = if (problemType == "aritmética" || true) {
                     systemPromptSocraticArithmetic(history.joinToString("\n\n---\n\n"))
                 } else {
                     systemPromptSocratic(history.joinToString("\n\n---\n\n"))
@@ -367,7 +367,7 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
 
         // Kick off the Socratic dialogue
         viewModelScope.launch {
-            val socraticPrompt = systemPromptSocratic("Tutor found problem statement: $problemStatementFromTutor") + "\n\nNow, begin the conversation with a guiding question."
+            val socraticPrompt = systemPromptSocraticArithmetic("Tutor found problem statement: $problemStatementFromTutor") + "\n\nNow, begin the conversation with a guiding question."
             val tokenCount = LlmHelper.sizeInTokens(socraticPrompt)
             Log.d(TAG, "LLM Prompt ($tokenCount tokens): $socraticPrompt")
             var fullResponse = ""
