@@ -435,24 +435,32 @@ fun MainWhiteboardContent(
     }
 
     // Animate tutor message visibility
-    LaunchedEffect(tutorMessageText) {
+    LaunchedEffect(tutorMessageText, uiState.flowState) {
         if (tutorMessageText != null) {
-            tutorMessageAnimatable.snapTo(0f)
-            kotlinx.coroutines.delay(2000) // Start animation partway through the main drawing
-            tutorMessageAnimatable.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(durationMillis = 1500)
-            )
+            if (uiState.flowState == WhiteboardFlowState.INTERPRETING) {
+                tutorMessageAnimatable.snapTo(1f) // Show immediately
+            } else {
+                tutorMessageAnimatable.snapTo(0f)
+                kotlinx.coroutines.delay(2000) // Start animation partway through the main drawing
+                tutorMessageAnimatable.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(durationMillis = 1500)
+                )
+            }
+        } else {
+            tutorMessageAnimatable.snapTo(0f) // Hide if message is null
         }
     }
 
     // Trigger speech after animation has had time to complete
-    LaunchedEffect(tutorMessageText, ttsInitialized) {
+    LaunchedEffect(tutorMessageText, ttsInitialized, uiState.flowState) {
         if (tutorMessageText != null && ttsInitialized) {
-            // Wait for visual animation to finish before speaking
-            kotlinx.coroutines.delay(3500)
-            Log.d(TAG, "Triggering TTS speech for: '$tutorMessageText'")
-            tts?.speak(tutorMessageText, TextToSpeech.QUEUE_FLUSH, null, "tutor_message")
+            if (uiState.flowState != WhiteboardFlowState.INTERPRETING) {
+                // Wait for visual animation to finish before speaking
+                kotlinx.coroutines.delay(3500)
+                Log.d(TAG, "Triggering TTS speech for: '$tutorMessageText'")
+                tts?.speak(tutorMessageText, TextToSpeech.QUEUE_FLUSH, null, "tutor_message")
+            }
         }
     }
 

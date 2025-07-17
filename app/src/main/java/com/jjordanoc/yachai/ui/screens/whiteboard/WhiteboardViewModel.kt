@@ -304,10 +304,14 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
             }
         }
 
+        val isInterpreting = newFlowState == WhiteboardFlowState.INTERPRETING
+
         _uiState.update { it.copy(
             textInput = "",
             flowState = newFlowState,
             initialProblemStatement = newProblemStatement,
+            tutorMessage = if (isInterpreting) "Estoy leyendo el problema..." else null,
+            hint = null,
             showConfirmationFailureMessage = false,
             selectedImageUri = null // Clear image after sending
         ).also {
