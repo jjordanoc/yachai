@@ -80,8 +80,8 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     private fun getNextGridPosition(state: WhiteboardState): Pair<Int, Int>? {
-        for (row in 0 until GRID_SIZE) {
-            for (col in 0 until GRID_SIZE) {
+        for (col in 0 until GRID_SIZE) {
+            for (row in 0 until GRID_SIZE) {
                 if (!state.gridItems.containsKey(row to col)) {
                     return row to col
                 }

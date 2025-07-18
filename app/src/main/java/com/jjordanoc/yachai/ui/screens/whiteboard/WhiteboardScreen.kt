@@ -11,13 +11,15 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -76,10 +78,6 @@ import java.util.Locale
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import coil.compose.rememberAsyncImagePainter
@@ -103,6 +101,13 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.transformable
+import androidx.compose.foundation.rememberTransformableState
 
 
 private fun Offset.lerp(other: Offset, fraction: Float): Offset {
@@ -395,30 +400,36 @@ fun MainWhiteboardContent(
         val canvasWidth = maxWidth.value
         val canvasHeight = maxHeight.value
 
-        LaunchedEffect(canvasWidth, canvasHeight, uiState.gridItems) {
-            if (canvasWidth > 0 && uiState.gridItems.isNotEmpty()) {
+        // This effect runs once to set the initial camera position.
+        // It centers the view on grid cell (1, 1) and sets a default zoom.
+        LaunchedEffect(canvasWidth, canvasHeight) {
+            if (canvasWidth > 0 && canvasHeight > 0) {
+                val gridSize = 9
                 val minDimension = minOf(canvasWidth, canvasHeight)
-                val cellPaddedSize = minDimension / 9f
+                val cellPaddedSize = minDimension / gridSize
 
-                // Center on the first item
-                val firstItemPos = uiState.gridItems.keys.first()
-                val (row, col) = firstItemPos
+                // Center on grid position (1, 1)
+                val (row, col) = 1 to 1
 
                 val desiredScale = 6f
                 scale = desiredScale
 
-                val gridTotalWidth = cellPaddedSize * 9
-                val gridTotalHeight = cellPaddedSize * 9
+                // Calculate the grid's top-left offset to center it on the canvas
+                val gridTotalWidth = cellPaddedSize * gridSize
+                val gridTotalHeight = cellPaddedSize * gridSize
                 val gridOffsetX = (canvasWidth - gridTotalWidth) / 2f
                 val gridOffsetY = (canvasHeight - gridTotalHeight) / 2f
 
-                val cellTopLeft = Offset(
-                    x = gridOffsetX + (col * cellPaddedSize) + cellPaddedSize / 2f,
-                    y = gridOffsetY + (row * cellPaddedSize) + cellPaddedSize / 2f
+                // Calculate the center of the target cell in the unscaled grid coordinate system
+                val cellCenter = Offset(
+                    x = gridOffsetX + (col * cellPaddedSize) + (cellPaddedSize / 2f),
+                    y = gridOffsetY + (row * cellPaddedSize) + (cellPaddedSize / 2f)
                 )
 
                 val screenCenter = Offset(canvasWidth / 2f, canvasHeight / 2f)
-                offset = screenCenter - (cellTopLeft * desiredScale)
+
+                // Set the offset to move the target cell's center to the screen's center
+                offset = screenCenter - (cellCenter * desiredScale)
             }
         }
     }
@@ -534,25 +545,28 @@ fun MainWhiteboardContent(
                         x = gridOffsetX + (col * cellPaddedSize) + cellPadding,
                         y = gridOffsetY + (row * cellPaddedSize) + cellPadding
                     )
+                    val isLastItem = item == animatedItem
+                    val progress = if (isLastItem) animationProgress.value else 3f
+
 
                     translate(left = cellTopLeft.x, top = cellTopLeft.y) {
                         when (item) {
                             is WhiteboardItem.AnimatedTriangle -> drawTriangle(
                                 item,
                                 Size(cellSize, cellSize),
-                                animationProgress.value,
+                                progress,
                                 pulseAlpha,
                                 pulseStrokeWidth
                             )
                             is WhiteboardItem.AnimatedNumberLine -> drawNumberLine(
                                 item,
                                 Size(cellSize, cellSize),
-                                animationProgress.value
+                                progress
                             )
                             is WhiteboardItem.Expression -> drawExpression(
                                 item,
                                 Size(cellSize, cellSize),
-                                animationProgress.value
+                                progress
                             )
                         }
                     }

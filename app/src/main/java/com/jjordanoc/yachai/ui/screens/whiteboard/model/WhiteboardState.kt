@@ -5,12 +5,12 @@ import com.jjordanoc.yachai.ui.screens.whiteboard.WhiteboardFlowState
 
 data class WhiteboardState(
     val gridItems: Map<Pair<Int, Int>, WhiteboardItem> = emptyMap(),
-    val textInput: String = "",
-    val tutorMessage: String? = "Hello! I'm your AI Math Tutor. Describe a problem to me, and we can solve it together.",
+    val tutorMessage: String? = null,
     val hint: String? = null,
+    val textInput: String = "",
     val flowState: WhiteboardFlowState = WhiteboardFlowState.INITIAL,
     val initialProblemStatement: String = "",
     val showConfirmationFailureMessage: Boolean = false,
     val isModelLoading: Boolean = true,
-    val selectedImageUri: Uri? = null,
+    val selectedImageUri: Uri? = null
 )
