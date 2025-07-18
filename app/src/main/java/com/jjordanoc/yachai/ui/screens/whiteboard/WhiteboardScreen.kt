@@ -411,7 +411,7 @@ fun MainWhiteboardContent(
                 // Center on grid position (1, 1)
                 val (row, col) = 1 to 1
 
-                val desiredScale = 6f
+                val desiredScale = 3f // Reduced from 6f for better initial view
                 scale = desiredScale
 
                 // Calculate the grid's top-left offset to center it on the canvas
@@ -685,7 +685,7 @@ private fun DrawScope.drawExpression(
         val nativeCanvas = canvas.nativeCanvas
         val textPaint = Paint().apply {
             color = Color.Black.toArgb()
-            textSize = size.height / 8f // Dynamic text size
+            textSize = 24.dp.toPx() // Use fixed dp size like number line
             textAlign = Paint.Align.CENTER
             alpha = (progress.coerceAtMost(1f) * 255).toInt()
         }
@@ -763,7 +763,7 @@ private fun DrawScope.drawTriangle(
             val nativeCanvas = canvas.nativeCanvas
             val labelPaint = Paint().apply {
                 color = Color.Black.toArgb()
-                textSize = 20f
+                textSize = 16.dp.toPx() // Use consistent dp sizing
                 textAlign = Paint.Align.CENTER
             }
             nativeCanvas.drawText("A", pA.x, pA.y - 10f, labelPaint)
@@ -805,7 +805,7 @@ private fun DrawScope.drawTriangle(
             val nativeCanvas = canvas.nativeCanvas
             val textPaint = Paint().apply {
                 color = Color.DarkGray.toArgb()
-                textSize = 18f
+                textSize = 14.dp.toPx() // Use consistent dp sizing
                 textAlign = Paint.Align.CENTER
             }
 

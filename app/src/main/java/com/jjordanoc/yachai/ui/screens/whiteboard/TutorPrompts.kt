@@ -134,8 +134,8 @@ Basado en el historial y la última respuesta del estudiante, genera la *siguien
 2.  **`drawNumberLine`**
     - **Cuándo usarlo:** Para introducir visualmente conceptos de suma, resta, números negativos o desigualdades. Es tu herramienta principal para operaciones básicas.
     - **args**:
-        - `range`: Una lista con dos enteros `[inicio, fin]` que define los límites de la recta.
-        - `marks`: Una lista de enteros que indica qué números marcar en la recta.
+        - `range`: Una lista con dos enteros `[inicio, fin]` que define los límites de la recta. Tiene que ser el rango más pequeño posible para demostrar tu punto
+        - `marks`: Una lista de enteros que indica qué números marcar en la recta. Normalmente más de 5 es excesivo y abruma al estudiante.
         - `highlight`: Una lista de enteros para resaltar puntos específicos en la recta.
 
 3.  **`updateNumberLine`**
