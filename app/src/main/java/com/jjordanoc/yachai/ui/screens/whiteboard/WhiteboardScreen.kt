@@ -597,53 +597,59 @@ private fun DrawScope.drawNumberLine(
 ) {
     val textPaint = Paint().apply {
         color = Color.Black.toArgb()
-        textSize = size.height / 12f
+        textSize = 16.dp.toPx()
         textAlign = Paint.Align.CENTER
     }
     val highlightPaint = Paint().apply {
         color = Color.Blue.toArgb() // A highlight color
-        textSize = size.height / 10f
+        textSize = 18.dp.toPx()
         textAlign = Paint.Align.CENTER
         isFakeBoldText = true
     }
 
     val yPos = size.height / 2f
-    val startX = size.width * 0.1f
-    val endX = size.width * 0.9f
+    val tickHeight = 8.dp.toPx()
+
     if (item.range.first() == item.range.last()) {
         Log.w(TAG, "Cannot draw number line with a zero-length range.")
         return
     }
-    val rangeSize = (item.range.last() - item.range.first()).toFloat()
 
+    val numberSpan = item.range.last() - item.range.first()
+    val minSpacing = 60.dp.toPx()
+    val requiredWidth = numberSpan * minSpacing
+    val startX = (size.width - requiredWidth) / 2f
+    val endX = startX + requiredWidth
 
     // Draw main line
     val lineProgress = progress.coerceAtMost(1f)
     drawLine(
         color = Color.Black,
         start = Offset(startX, yPos),
-        end = Offset(startX + (endX - startX) * lineProgress, yPos),
-        strokeWidth = 3f
+        end = Offset(startX + requiredWidth * lineProgress, yPos),
+        strokeWidth = 2.dp.toPx()
     )
 
     if (progress < 1f) return
 
     fun getXForValue(value: Int): Float {
-        val normalized = (value - item.range.first()).toFloat() / rangeSize
-        return startX + normalized * (endX - startX)
+        val normalized = (value - item.range.first()).toFloat() / numberSpan
+        return startX + normalized * requiredWidth
     }
 
     // Draw marks and labels
-    item.marks.forEach { markValue ->
+    for (markValue in item.range.first()..item.range.last()) {
         val x = getXForValue(markValue)
         drawLine(
             color = Color.Black,
-            start = Offset(x, yPos - 8f),
-            end = Offset(x, yPos + 8f),
-            strokeWidth = 2f
+            start = Offset(x, yPos - tickHeight),
+            end = Offset(x, yPos + tickHeight),
+            strokeWidth = 1.5.dp.toPx()
         )
-        drawIntoCanvas { canvas ->
-            canvas.nativeCanvas.drawText(markValue.toString(), x, yPos + 40f, textPaint)
+        if (markValue in item.marks) {
+            drawIntoCanvas { canvas ->
+                canvas.nativeCanvas.drawText(markValue.toString(), x, yPos + tickHeight + 24.dp.toPx(), textPaint)
+            }
         }
     }
 
@@ -662,8 +668,8 @@ private fun DrawScope.drawNumberLine(
             drawIntoCanvas { canvas ->
                 val nativeCanvas = canvas.nativeCanvas
                 nativeCanvas.save()
-                nativeCanvas.scale(highlightProgress, highlightProgress, x, yPos + 40f)
-                nativeCanvas.drawText(highlightValue.toString(), x, yPos + 40f, highlightPaint)
+                nativeCanvas.scale(highlightProgress, highlightProgress, x, yPos + tickHeight + 24.dp.toPx())
+                nativeCanvas.drawText(highlightValue.toString(), x, yPos + tickHeight + 24.dp.toPx(), highlightPaint)
                 nativeCanvas.restore()
             }
         }
