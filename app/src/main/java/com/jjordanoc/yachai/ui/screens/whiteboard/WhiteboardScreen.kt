@@ -106,8 +106,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.transformable
-import androidx.compose.foundation.rememberTransformableState
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
+import kotlinx.coroutines.launch
 
 
 private fun Offset.lerp(other: Offset, fraction: Float): Offset {
@@ -331,14 +332,13 @@ fun MainWhiteboardContent(
     uiState: WhiteboardState,
     viewModel: WhiteboardViewModel
 ) {
+    val coroutineScope = rememberCoroutineScope()
     var scale by remember { mutableStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
 
-    val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-        val newScale = (scale * zoomChange).coerceIn(0.5f, 10f)
-        val scaleFactor = newScale / scale
-        scale = newScale
-        offset = offset * scaleFactor + panChange
+    val state = rememberTransformableState { zoomChange, offsetChange, rotationChange ->
+        scale *= zoomChange
+        offset += offsetChange
     }
 
     val animationProgress = remember { Animatable(0f) }
@@ -517,7 +517,7 @@ fun MainWhiteboardContent(
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
-                    .transformable(state = transformState)
+                    .transformable(state = state)
                     .graphicsLayer(
                         scaleX = scale,
                         scaleY = scale,
