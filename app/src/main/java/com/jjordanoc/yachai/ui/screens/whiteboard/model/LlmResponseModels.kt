@@ -45,6 +45,6 @@ data class InterpretResponse(
 @Serializable
 data class LlmResponse(
     @SerialName("tutor_message") val tutorMessage: String?,
-    val hint: String?,
+    val hint: String? = null,
     val animation: List<AnimationCommand> = emptyList()
 )
