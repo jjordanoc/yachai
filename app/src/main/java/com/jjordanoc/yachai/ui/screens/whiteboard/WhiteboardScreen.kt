@@ -544,10 +544,15 @@ fun MainWhiteboardContent(
                                 pulseAlpha,
                                 pulseStrokeWidth
                             )
-                            is WhiteboardItem.AnimatedNumberLine -> { /* TODO: Draw Number Line */ }
+                            is WhiteboardItem.AnimatedNumberLine -> drawNumberLine(
+                                item,
+                                Size(cellSize, cellSize),
+                                animationProgress.value
+                            )
                             is WhiteboardItem.Expression -> drawExpression(
                                 item,
-                                Size(cellSize, cellSize)
+                                Size(cellSize, cellSize),
+                                animationProgress.value
                             )
                         }
                     }
@@ -571,17 +576,107 @@ fun MainWhiteboardContent(
     }
 }
 
-private fun DrawScope.drawExpression(item: WhiteboardItem.Expression, size: Size) {
+private fun DrawScope.drawNumberLine(
+    item: WhiteboardItem.AnimatedNumberLine,
+    size: Size,
+    progress: Float
+) {
+    val textPaint = Paint().apply {
+        color = Color.Black.toArgb()
+        textSize = size.height / 12f
+        textAlign = Paint.Align.CENTER
+    }
+    val highlightPaint = Paint().apply {
+        color = Color.Blue.toArgb() // A highlight color
+        textSize = size.height / 10f
+        textAlign = Paint.Align.CENTER
+        isFakeBoldText = true
+    }
+
+    val yPos = size.height / 2f
+    val startX = size.width * 0.1f
+    val endX = size.width * 0.9f
+    if (item.range.first() == item.range.last()) {
+        Log.w(TAG, "Cannot draw number line with a zero-length range.")
+        return
+    }
+    val rangeSize = (item.range.last() - item.range.first()).toFloat()
+
+
+    // Draw main line
+    val lineProgress = progress.coerceAtMost(1f)
+    drawLine(
+        color = Color.Black,
+        start = Offset(startX, yPos),
+        end = Offset(startX + (endX - startX) * lineProgress, yPos),
+        strokeWidth = 3f
+    )
+
+    if (progress < 1f) return
+
+    fun getXForValue(value: Int): Float {
+        val normalized = (value - item.range.first()).toFloat() / rangeSize
+        return startX + normalized * (endX - startX)
+    }
+
+    // Draw marks and labels
+    item.marks.forEach { markValue ->
+        val x = getXForValue(markValue)
+        drawLine(
+            color = Color.Black,
+            start = Offset(x, yPos - 8f),
+            end = Offset(x, yPos + 8f),
+            strokeWidth = 2f
+        )
+        drawIntoCanvas { canvas ->
+            canvas.nativeCanvas.drawText(markValue.toString(), x, yPos + 40f, textPaint)
+        }
+    }
+
+    // Draw highlights
+    if (progress > 1.5f) { // Animate the highlight after a delay
+        val highlightProgress = (progress - 1.5f).coerceAtMost(1f)
+        item.highlight.forEach { highlightValue ->
+            val x = getXForValue(highlightValue)
+            // Draw a circle for the highlight
+            drawCircle(
+                color = Color.Blue.copy(alpha = highlightProgress),
+                radius = 12f * highlightProgress,
+                center = Offset(x, yPos)
+            )
+            // Overwrite the label with a highlighted one
+            drawIntoCanvas { canvas ->
+                val nativeCanvas = canvas.nativeCanvas
+                nativeCanvas.save()
+                nativeCanvas.scale(highlightProgress, highlightProgress, x, yPos + 40f)
+                nativeCanvas.drawText(highlightValue.toString(), x, yPos + 40f, highlightPaint)
+                nativeCanvas.restore()
+            }
+        }
+    }
+}
+
+private fun DrawScope.drawExpression(
+    item: WhiteboardItem.Expression,
+    size: Size,
+    progress: Float
+) {
     drawIntoCanvas { canvas ->
         val nativeCanvas = canvas.nativeCanvas
         val textPaint = Paint().apply {
             color = Color.Black.toArgb()
             textSize = size.height / 8f // Dynamic text size
             textAlign = Paint.Align.CENTER
+            alpha = (progress.coerceAtMost(1f) * 255).toInt()
         }
         val textX = size.width / 2f
         val textY = size.height / 2f
+
+        val scale = 0.8f + 0.2f * progress.coerceAtMost(1f)
+        nativeCanvas.save()
+        nativeCanvas.scale(scale, scale, textX, textY)
         nativeCanvas.drawText(item.text, textX, textY, textPaint)
+        nativeCanvas.restore()
     }
 }
 

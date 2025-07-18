@@ -355,11 +355,18 @@ class WhiteboardViewModel(application: Application) : AndroidViewModel(applicati
         Log.d(TAG, "Confirmation accepted by user.")
         val problemStatementFromTutor = _uiState.value.tutorMessage ?: _uiState.value.initialProblemStatement
         _uiState.update {
+            val currentGrid = it.gridItems.toMutableMap()
+            // Add the confirmed problem statement to the grid
+            getNextGridPosition(it)?.let { pos ->
+                currentGrid[pos] = WhiteboardItem.Expression(problemStatementFromTutor)
+            }
+
             it.copy(
                 flowState = WhiteboardFlowState.SOCRATIC_TUTORING,
                 tutorMessage = null, // Clear interpretation message
                 hint = null,
-                initialProblemStatement = problemStatementFromTutor
+                initialProblemStatement = problemStatementFromTutor,
+                gridItems = currentGrid
             ).also {
                 Log.d(TAG, "State updated for confirmation accept. New flow state: ${it.flowState}")
             }
