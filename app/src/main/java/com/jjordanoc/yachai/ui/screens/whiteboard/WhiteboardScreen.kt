@@ -4,6 +4,7 @@ import android.graphics.Paint
 import android.speech.tts.TextToSpeech
 import android.util.Log
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -109,6 +110,11 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.input.pointer.pointerInput
 
 
 private fun Offset.lerp(other: Offset, fraction: Float): Offset {
@@ -335,11 +341,11 @@ fun MainWhiteboardContent(
     val coroutineScope = rememberCoroutineScope()
     var scale by remember { mutableStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
-
-    val state = rememberTransformableState { zoomChange, offsetChange, rotationChange ->
-        scale *= zoomChange
-        offset += offsetChange
-    }
+    
+    // Smooth animation for zoom and pan
+    val scaleAnimatable = remember { Animatable(1f) }
+    val offsetXAnimatable = remember { Animatable(0f) }
+    val offsetYAnimatable = remember { Animatable(0f) }
 
     val animationProgress = remember { Animatable(0f) }
     val tutorMessageAnimatable = remember { Animatable(0f) }
@@ -412,6 +418,9 @@ fun MainWhiteboardContent(
                 val (row, col) = 1 to 1
 
                 val desiredScale = 3f // Reduced from 6f for better initial view
+                
+                // Use smooth animations for initial positioning
+                scaleAnimatable.snapTo(desiredScale)
                 scale = desiredScale
 
                 // Calculate the grid's top-left offset to center it on the canvas
@@ -429,8 +438,20 @@ fun MainWhiteboardContent(
                 val screenCenter = Offset(canvasWidth / 2f, canvasHeight / 2f)
 
                 // Set the offset to move the target cell's center to the screen's center
-                offset = screenCenter - (cellCenter * desiredScale)
+                val targetOffset = screenCenter - (cellCenter * desiredScale)
+                offsetXAnimatable.snapTo(targetOffset.x)
+                offsetYAnimatable.snapTo(targetOffset.y)
+                offset = targetOffset
             }
+        }
+        
+        // Sync animated values with state
+        LaunchedEffect(scaleAnimatable.value) {
+            scale = scaleAnimatable.value
+        }
+        
+        LaunchedEffect(offsetXAnimatable.value, offsetYAnimatable.value) {
+            offset = Offset(offsetXAnimatable.value, offsetYAnimatable.value)
         }
     }
 
@@ -513,11 +534,90 @@ fun MainWhiteboardContent(
                 .fillMaxSize()
                 .clipToBounds()
         ) {
-            // Main drawing canvas
+            // Main drawing canvas with advanced gesture handling
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
-                    .transformable(state = state)
+                    .pointerInput(Unit) {
+                        detectTransformGestures(
+                            onGesture = { centroid, pan, zoom, _ ->
+                                coroutineScope.launch {
+                                    // Constrain zoom to reasonable bounds
+                                    val newScale = (scale * zoom).coerceIn(0.1f, 10f)
+                                    
+                                    // Calculate new offset with centroid-based zooming
+                                    val newOffset = if (zoom != 1f) {
+                                        // Zoom around the centroid point
+                                        val centroidInCanvas = centroid
+                                        val scaleDelta = newScale / scale
+                                        val newX = centroidInCanvas.x - (centroidInCanvas.x - offset.x) * scaleDelta
+                                        val newY = centroidInCanvas.y - (centroidInCanvas.y - offset.y) * scaleDelta
+                                        Offset(newX, newY) + pan
+                                    } else {
+                                        offset + pan
+                                    }
+                                    
+                                    // Animate to new values smoothly
+                                    launch {
+                                        scaleAnimatable.animateTo(
+                                            newScale,
+                                            animationSpec = tween(50, easing = LinearEasing)
+                                        )
+                                    }
+                                    
+                                    launch {
+                                        offsetXAnimatable.animateTo(
+                                            newOffset.x,
+                                            animationSpec = tween(50, easing = LinearEasing)
+                                        )
+                                    }
+                                    
+                                    launch {
+                                        offsetYAnimatable.animateTo(
+                                            newOffset.y,
+                                            animationSpec = tween(50, easing = LinearEasing)
+                                        )
+                                    }
+                                }
+                            }
+                        )
+                    }
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onDoubleTap = { tapOffset ->
+                                // Double-tap to zoom in/out
+                                coroutineScope.launch {
+                                    val targetScale = if (scale < 2f) 4f else 1f
+                                    val scaleDelta = targetScale / scale
+                                    
+                                    // Zoom towards the tap point
+                                    val newX = tapOffset.x - (tapOffset.x - offset.x) * scaleDelta
+                                    val newY = tapOffset.y - (tapOffset.y - offset.y) * scaleDelta
+                                    
+                                    launch {
+                                        scaleAnimatable.animateTo(
+                                            targetScale,
+                                            animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                        )
+                                    }
+                                    
+                                    launch {
+                                        offsetXAnimatable.animateTo(
+                                            newX,
+                                            animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                        )
+                                    }
+                                    
+                                    launch {
+                                        offsetYAnimatable.animateTo(
+                                            newY,
+                                            animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                        )
+                                    }
+                                }
+                            }
+                        )
+                    }
                     .graphicsLayer(
                         scaleX = scale,
                         scaleY = scale,
