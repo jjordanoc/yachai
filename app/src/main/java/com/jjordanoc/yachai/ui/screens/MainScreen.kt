@@ -63,6 +63,11 @@ fun MainScreen(navController: NavController) {
                 onClick = { navController.navigate(Routes.CHAT_SCREEN) },
                 modifier = Modifier.fillMaxWidth()
         ) { Text(text = "Chat de Pruebas") }
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+                onClick = { navController.navigate(Routes.HORIZONTAL_TUTORIAL_SCREEN) },
+                modifier = Modifier.fillMaxWidth()
+        ) { Text(text = "Tutorial Horizontal") }
         Spacer(modifier = Modifier.height(32.dp))
 
         Row(

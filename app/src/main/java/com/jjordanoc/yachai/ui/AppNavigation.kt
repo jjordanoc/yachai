@@ -16,6 +16,7 @@ object Routes {
     const val PRACTICE_SCREEN = "practice"
     const val WHITEBOARD_SCREEN = "whiteboard"
     const val CHAT_SCREEN = "chat"
+    const val HORIZONTAL_TUTORIAL_SCREEN = "horizontal_tutorial"
 }
 
 @Composable
@@ -39,6 +40,9 @@ fun AppNavigation() {
         }
         composable(Routes.CHAT_SCREEN) {
             ChatScreen()
+        }
+        composable(Routes.HORIZONTAL_TUTORIAL_SCREEN) {
+            HorizontalTutorialScreen(navController = navController)
         }
     }
 }
