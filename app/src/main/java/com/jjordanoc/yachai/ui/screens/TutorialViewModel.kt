@@ -87,11 +87,19 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
     fun triggerAlpacaSpeaking() {
         _uiState.update { it.copy(isAlpacaSpeaking = true) }
         
-        // Stop speaking after 3 seconds
+        // Stop speaking after 3 seconds (fallback for manual triggers)
         viewModelScope.launch {
             kotlinx.coroutines.delay(3000)
             _uiState.update { it.copy(isAlpacaSpeaking = false) }
         }
+    }
+    
+    fun startAlpacaSpeaking() {
+        _uiState.update { it.copy(isAlpacaSpeaking = true) }
+    }
+    
+    fun stopAlpacaSpeaking() {
+        _uiState.update { it.copy(isAlpacaSpeaking = false) }
     }
 
     fun processLlmResponse(jsonString: String) {

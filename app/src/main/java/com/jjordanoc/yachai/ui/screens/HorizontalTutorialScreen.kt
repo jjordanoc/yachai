@@ -53,10 +53,12 @@ import coil.compose.rememberAsyncImagePainter
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.graphics.graphicsLayer
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import androidx.compose.runtime.DisposableEffect
 import java.util.Locale
 import android.util.Log
 import com.jjordanoc.yachai.utils.TAG
+import android.os.Bundle
 
 @Composable
 fun HorizontalTutorialScreen(
@@ -73,17 +75,21 @@ fun HorizontalTutorialScreen(
     
     val uiState by viewModel.uiState.collectAsState()
     
-    // Animation for alpaca speaking
+    // Animation for alpaca speaking - only animate when actually speaking
     val speakingAnimation = rememberInfiniteTransition(label = "alpaca_speaking")
-    val isMouthOpen by speakingAnimation.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 400, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "mouth_animation"
-    )
+    val isMouthOpen by if (uiState.isAlpacaSpeaking) {
+        speakingAnimation.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 600, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "mouth_animation"
+        )
+    } else {
+        remember { Animatable(0f) }.asState()
+    }
     
     // Image picker setup
     val cropImageLauncher = rememberLauncherForActivityResult(
@@ -132,6 +138,33 @@ fun HorizontalTutorialScreen(
                     Log.e(TAG, "TTS language (es-419) not supported or missing data.")
                 } else {
                     Log.d(TAG, "TTS language set to Latin American Spanish.")
+                    
+                    // Set up TTS progress listener to sync with alpaca animation
+                    tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                        override fun onStart(utteranceId: String?) {
+                            Log.d(TAG, "TTS started speaking: $utteranceId")
+                            // Start alpaca speaking animation when TTS begins
+                            viewModel.startAlpacaSpeaking()
+                        }
+
+                        override fun onDone(utteranceId: String?) {
+                            Log.d(TAG, "TTS finished speaking: $utteranceId")
+                            // Stop alpaca speaking animation when TTS ends
+                            viewModel.stopAlpacaSpeaking()
+                        }
+
+                        @Deprecated("Deprecated in Java")
+                        override fun onError(utteranceId: String?) {
+                            Log.e(TAG, "TTS error for utterance: $utteranceId")
+                            viewModel.stopAlpacaSpeaking()
+                        }
+
+                        override fun onError(utteranceId: String?, errorCode: Int) {
+                            Log.e(TAG, "TTS error for utterance: $utteranceId, code: $errorCode")
+                            viewModel.stopAlpacaSpeaking()
+                        }
+                    })
+                    
                     ttsInitialized = true
                 }
             } else {
@@ -151,10 +184,16 @@ fun HorizontalTutorialScreen(
         val tutorMessageText = uiState.tutorMessage
         if (tutorMessageText != null && ttsInitialized) {
             if (uiState.flowState != TutorialFlowState.INTERPRETING) {
-                // Wait for visual animation to start, then trigger speech
-                delay(1500) // Wait for alpaca speaking animation to begin
+                // Small delay to let UI update, then start TTS
+                delay(500)
                 Log.d(TAG, "Triggering TTS speech for: '$tutorMessageText'")
-                tts?.speak(tutorMessageText, TextToSpeech.QUEUE_FLUSH, null, "tutor_message")
+                
+                // Create unique utterance ID for tracking
+                val utteranceId = "tutor_message_${System.currentTimeMillis()}"
+                val params = Bundle()
+                params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId)
+                
+                tts?.speak(tutorMessageText, TextToSpeech.QUEUE_FLUSH, params, utteranceId)
             }
         }
     }
