@@ -21,7 +21,7 @@ import com.jjordanoc.yachai.llm.LlmHelper
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.InterpretResponse
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.LlmResponse
 import com.jjordanoc.yachai.ui.screens.whiteboard.systemPromptInterpret
-import com.jjordanoc.yachai.ui.screens.whiteboard.systemPromptSocraticArithmetic
+import com.jjordanoc.yachai.ui.screens.whiteboard.systemPromptSocratic
 import androidx.lifecycle.ViewModelProvider
 
 enum class TutorialFlowState {
@@ -35,6 +35,7 @@ data class TutorialState(
     val textInput: String = "",
     val selectedImageUri: Uri? = null,
     val tutorMessage: String? = null,
+    val subject: String = "",
     val flowState: TutorialFlowState = TutorialFlowState.INITIAL,
     val isModelLoading: Boolean = true,
     val showConfirmationFailureMessage: Boolean = false,
@@ -128,7 +129,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
 
             val currentState = _uiState.value
 
-            // Adapt parsing based on flow state
+            // Adapt parsing based flow state
             val response: LlmResponse = if (currentState.flowState == TutorialFlowState.INTERPRETING) {
                 val interpretResponse = json.decodeFromString<InterpretResponse>(cleanJsonString)
                 LlmResponse(
@@ -148,13 +149,21 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 currentState.flowState
             }
 
+            // Extract subject from interpretation response if this is the interpreting phase
+            val extractedSubject = if (currentState.flowState == TutorialFlowState.INTERPRETING) {
+                extractSubjectFromResponse(response.tutorMessage ?: "")
+            } else {
+                currentState.subject
+            }
+
             _uiState.update { state ->
                 state.copy(
                     tutorMessage = response.tutorMessage,
+                    subject = extractedSubject,
                     flowState = newFlowState,
                     isAlpacaSpeaking = true
                 ).also {
-                    Log.d(TAG, "State updated with new tutor message and alpaca speaking triggered.")
+                    Log.d(TAG, "State updated with new tutor message, subject: '$extractedSubject', and alpaca speaking triggered.")
                 }
             }
 
@@ -200,7 +209,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                     history.add(lastTurn)
                 }
 
-                val socraticPrompt = systemPromptSocraticArithmetic(history.joinToString("\n\n---\n\n"))
+                val socraticPrompt = systemPromptSocratic(history.joinToString("\n\n---\n\n"), subject = currentState.subject)
                 Triple(socraticPrompt, TutorialFlowState.CHATTING, currentState.initialProblemStatement)
             }
             else -> {
@@ -270,7 +279,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
 
         // Kick off the Socratic dialogue
         viewModelScope.launch {
-            val socraticPrompt = systemPromptSocraticArithmetic("Tutor found problem statement: $problemStatementFromTutor") + "\n\nNow, begin the conversation with a guiding question."
+            val socraticPrompt = systemPromptSocratic("Tutor found problem statement: $problemStatementFromTutor", subject = _uiState.value.subject) + "\n\nNow, begin the conversation with a guiding question."
             val tokenCount = LlmHelper.sizeInTokens(socraticPrompt)
             Log.d(TAG, "LLM Prompt ($tokenCount tokens): $socraticPrompt")
             var fullResponse = ""
@@ -295,11 +304,70 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
             it.copy(
                 flowState = TutorialFlowState.INITIAL,
                 tutorMessage = null,
+                subject = "",
                 initialProblemStatement = "",
                 showConfirmationFailureMessage = true
             ).also {
                 Log.d(TAG, "State reset after rejection.")
             }
+        }
+    }
+    
+    /**
+     * Extracts the subject/topic from the LLM interpretation response
+     */
+    private fun extractSubjectFromResponse(tutorMessage: String): String {
+        return try {
+            // Look for subject patterns in the tutor message
+            val subjectPatterns = listOf(
+                "\"subject\"\\s*:\\s*\"([^\"]+)\"".toRegex(),
+                "\"topic\"\\s*:\\s*\"([^\"]+)\"".toRegex(),
+                "\"problem_type\"\\s*:\\s*\"([^\"]+)\"".toRegex(),
+                "subject:\\s*([^,\\n}]+)".toRegex(),
+                "topic:\\s*([^,\\n}]+)".toRegex(),
+                "problem_type:\\s*([^,\\n}]+)".toRegex()
+            )
+            
+            for (pattern in subjectPatterns) {
+                val match = pattern.find(tutorMessage)
+                if (match != null) {
+                    val subject = match.groupValues[1].trim().replace("\"", "")
+                    Log.d(TAG, "Extracted subject: '$subject' from tutor message")
+                    return subject
+                }
+            }
+            
+            // Fallback: try to infer from common math keywords
+            val mathKeywords = mapOf(
+                "álgebra" to "álgebra",
+                "geometría" to "geometría", 
+                "aritmética" to "aritmética",
+                "cálculo" to "cálculo",
+                "trigonometría" to "trigonometría",
+                "estadística" to "estadística",
+                "probabilidad" to "probabilidad",
+                "fracciones" to "aritmética",
+                "ecuaciones" to "álgebra",
+                "triángulo" to "geometría",
+                "círculo" to "geometría",
+                "derivada" to "cálculo",
+                "integral" to "cálculo"
+            )
+            
+            val lowerMessage = tutorMessage.lowercase()
+            for ((keyword, subject) in mathKeywords) {
+                if (lowerMessage.contains(keyword)) {
+                    Log.d(TAG, "Inferred subject '$subject' from keyword '$keyword'")
+                    return subject
+                }
+            }
+            
+            Log.d(TAG, "Could not extract subject from tutor message, defaulting to 'matemáticas'")
+            "matemáticas" // Default subject
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting subject from response", e)
+            "matemáticas" // Default fallback
         }
     }
 }
