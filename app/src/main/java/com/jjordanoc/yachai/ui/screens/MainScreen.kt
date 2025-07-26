@@ -42,6 +42,11 @@ fun MainScreen(navController: NavController) {
         )
         Spacer(modifier = Modifier.height(64.dp))
         Button(
+            onClick = { navController.navigate(Routes.HORIZONTAL_TUTORIAL_SCREEN) },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text(text = "Tutorial Horizontal") }
+        Spacer(modifier = Modifier.height(32.dp))
+        Button(
                 onClick = { navController.navigate(Routes.CAMERA_SCREEN) },
                 modifier = Modifier.fillMaxWidth()
         ) { Text(text = stringResource(R.string.tomar_foto_del_problema)) }
@@ -64,11 +69,7 @@ fun MainScreen(navController: NavController) {
                 modifier = Modifier.fillMaxWidth()
         ) { Text(text = "Chat de Pruebas") }
         Spacer(modifier = Modifier.height(16.dp))
-        Button(
-                onClick = { navController.navigate(Routes.HORIZONTAL_TUTORIAL_SCREEN) },
-                modifier = Modifier.fillMaxWidth()
-        ) { Text(text = "Tutorial Horizontal") }
-        Spacer(modifier = Modifier.height(32.dp))
+
 
         Row(
             modifier = Modifier.fillMaxWidth(),

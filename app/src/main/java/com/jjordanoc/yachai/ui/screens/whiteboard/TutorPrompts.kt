@@ -8,36 +8,30 @@ data class AnimationPrimitive(
 
 object Primitives {
 
+    val base = listOf(
+        AnimationPrimitive(
+            name = "appendExpression",
+            description = "Escribe una expresión matemática en la pizarra",
+            args = mapOf("expression" to "Texto de la expresión")
+        ),
+    )
+
     val arithmetic = listOf(
         AnimationPrimitive(
             name = "drawNumberLine",
             description = "Dibuja una recta numérica",
             args = mapOf("range" to "[inicio, fin]", "marks" to "Números a marcar", "highlight" to "Números a resaltar")
         ),
-        AnimationPrimitive(
-            name = "appendExpression",
-            description = "Escribe una expresión matemática en la pizarra",
-            args = mapOf("expression" to "Texto de la expresión")
-        )
+        AnimationPrimitive("drawFractionBar", "Dibuja una fracción como barra", mapOf("totalParts" to "partes totales", "shadedParts" to "partes sombreadas")),
+
     )
 
     val geometry = listOf(
         AnimationPrimitive("drawPolygon", "Dibuja una figura geométrica", mapOf("type" to "triangle, square, etc")),
         AnimationPrimitive("highlightAngle", "Resalta un ángulo", mapOf("point" to "A, B, C", "type" to "right, acute, etc")),
         AnimationPrimitive("highlightSide", "Resalta un lado", mapOf("segment" to "AB, BC, AC", "label" to "base, altura, etc")),
-        AnimationPrimitive("appendExpression", "Escribe una fórmula", mapOf("expression" to "Área = base × altura"))
-    )
-
-    val measurement = listOf(
         AnimationPrimitive("drawRuler", "Dibuja una regla", mapOf("range" to "[0, 20]", "unit" to "cm, mm")),
         AnimationPrimitive("drawRectangle", "Dibuja un rectángulo", mapOf("base" to "número", "height" to "número")),
-        AnimationPrimitive("appendExpression", "Escribe fórmula", mapOf("expression" to "Área = base × altura"))
-    )
-
-    val fractions = listOf(
-        AnimationPrimitive("drawFractionBar", "Dibuja una fracción como barra", mapOf("totalParts" to "partes totales", "shadedParts" to "partes sombreadas")),
-        AnimationPrimitive("drawNumberLine", "Dibuja una fracción en recta", mapOf("range" to "[0,1]", "marks" to "puntos decimales", "highlight" to "punto clave")),
-        AnimationPrimitive("appendExpression", "Escribe una conversión o comparación", mapOf("expression" to "Ej: 3/4 = 0.75"))
     )
 
     val data = listOf(
@@ -69,6 +63,7 @@ Tu salida debe ser un único objeto JSON con esta estructura exacta:
   - "aritmética"
   - "álgebra"
   - "geometría"
+  - "estadística"
 
 - El campo **"tutor_message"** debe estar en español claro y repetir el enunciado del problema.
 - Solo usa comandos si **problem_type = "geometría"**.
@@ -92,19 +87,19 @@ Tu salida debe ser un único objeto JSON con esta estructura exacta:
 """.trimIndent()
 
 fun systemPromptSocratic(chatHistory: String, subject: String = ""): String {
-    val primitives = when (subject.lowercase()) {
+    val subjectSpecificPrimitives = when (subject.lowercase()) {
         "aritmética" -> Primitives.arithmetic
         "geometría" -> Primitives.geometry
-        "medición" -> Primitives.measurement
-        "fracciones" -> Primitives.fractions
-        "datos" -> Primitives.data
+//        "álgebra" -> Primitives.
+        "estadística" -> Primitives.data
         else -> emptyList()
     }
 
+    // add base primitives
+    val primitives = subjectSpecificPrimitives + Primitives.base
+
     val commonIntro = """
 Eres un tutor visual de matemáticas para estudiantes de quinto grado de primaria. Usas una pizarra digital para ilustrar cada paso del razonamiento. También hablas en voz alta a través de un personaje llamado Alpaca, que guía al estudiante con preguntas sencillas.
-
----
 
 ### Tus herramientas:
 
@@ -113,8 +108,6 @@ Eres un tutor visual de matemáticas para estudiantes de quinto grado de primari
 """.trimIndent()
 
     val socraticRules = """
----
-
 ### Reglas:
 
 - **Nunca expliques con palabras solamente.** Cada paso o número clave debe visualizarse con un comando de animación.
@@ -125,8 +118,6 @@ Eres un tutor visual de matemáticas para estudiantes de quinto grado de primari
 """.trimIndent()
 
     val outputFormat = """
----
-
 ### Formato obligatorio:
 
 ```json

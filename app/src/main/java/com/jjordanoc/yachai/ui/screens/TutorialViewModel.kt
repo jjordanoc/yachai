@@ -20,6 +20,8 @@ import com.jjordanoc.yachai.llm.data.ModelConfig
 import com.jjordanoc.yachai.llm.LlmHelper
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.InterpretResponse
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.LlmResponse
+import com.jjordanoc.yachai.ui.screens.whiteboard.model.AnimationCommand
+import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardItem
 import com.jjordanoc.yachai.ui.screens.whiteboard.systemPromptInterpret
 import com.jjordanoc.yachai.ui.screens.whiteboard.systemPromptSocratic
 import androidx.lifecycle.ViewModelProvider
@@ -40,7 +42,10 @@ data class TutorialState(
     val isModelLoading: Boolean = true,
     val showConfirmationFailureMessage: Boolean = false,
     val initialProblemStatement: String = "",
-    val isAlpacaSpeaking: Boolean = false
+    val isAlpacaSpeaking: Boolean = false,
+    val currentNumberLine: WhiteboardItem.AnimatedNumberLine? = null,
+    val currentExpression: String? = null,
+    val animationTrigger: Long = 0L // Used to trigger animation recomposition
 )
 
 class TutorialViewModel(application: Application) : AndroidViewModel(application) {
@@ -135,7 +140,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 LlmResponse(
                     tutorMessage = interpretResponse.tutorMessage,
                     hint = null,
-                    animation = emptyList() // No animations in tutorial screen
+                    animation = emptyList() // No animations during interpretation
                 )
             } else {
                 json.decodeFromString<LlmResponse>(cleanJsonString)
@@ -156,14 +161,62 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 currentState.subject
             }
 
+            // Process animations for arithmetic primitives
+            var newNumberLine = currentState.currentNumberLine
+            var newExpression = currentState.currentExpression
+            val animationTrigger = System.currentTimeMillis()
+
+            for (command in response.animation) {
+                when (command.command) {
+                    "drawNumberLine" -> {
+                        Log.d(TAG, "drawNumberLine command found with args: ${command.args}")
+                        val range = command.args.range
+                        val marks = command.args.marks
+                        val highlight = command.args.highlight
+                        
+                        if (range != null && marks != null && highlight != null) {
+                            newNumberLine = WhiteboardItem.AnimatedNumberLine(
+                                range = range,
+                                marks = marks,
+                                highlight = highlight
+                            )
+                            Log.d(TAG, "Created number line: range=$range, marks=$marks, highlight=$highlight")
+                        } else {
+                            Log.w(TAG, "Invalid arguments for drawNumberLine: ${command.args}")
+                        }
+                    }
+                    "updateNumberLine" -> {
+                        command.args.highlight?.let { highlight ->
+                            Log.d(TAG, "updateNumberLine command found with highlight: $highlight")
+                            if (newNumberLine != null) {
+                                newNumberLine = newNumberLine.copy(highlight = highlight)
+                                Log.d(TAG, "Updated number line highlight: $highlight")
+                            }
+                        }
+                    }
+                    "appendExpression" -> {
+                        command.args.expression?.let { expression ->
+                            Log.d(TAG, "appendExpression command found with expression: $expression")
+                            newExpression = expression
+                        }
+                    }
+                    else -> {
+                        Log.w(TAG, "Unknown animation command: ${command.command}")
+                    }
+                }
+            }
+
             _uiState.update { state ->
                 state.copy(
                     tutorMessage = response.tutorMessage,
                     subject = extractedSubject,
                     flowState = newFlowState,
-                    isAlpacaSpeaking = true
+                    isAlpacaSpeaking = true,
+                    currentNumberLine = newNumberLine,
+                    currentExpression = newExpression,
+                    animationTrigger = animationTrigger
                 ).also {
-                    Log.d(TAG, "State updated with new tutor message, subject: '$extractedSubject', and alpaca speaking triggered.")
+                    Log.d(TAG, "State updated with new tutor message, subject: '$extractedSubject', animations, and alpaca speaking triggered.")
                 }
             }
 
@@ -306,7 +359,10 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 tutorMessage = null,
                 subject = "",
                 initialProblemStatement = "",
-                showConfirmationFailureMessage = true
+                showConfirmationFailureMessage = true,
+                currentNumberLine = null,
+                currentExpression = null,
+                animationTrigger = 0L
             ).also {
                 Log.d(TAG, "State reset after rejection.")
             }
@@ -370,6 +426,8 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
             "matemáticas" // Default fallback
         }
     }
+
+
 }
 
 class TutorialViewModelFactory(private val application: Application) : ViewModelProvider.Factory {

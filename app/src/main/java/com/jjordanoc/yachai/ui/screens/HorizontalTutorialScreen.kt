@@ -59,6 +59,13 @@ import java.util.Locale
 import android.util.Log
 import com.jjordanoc.yachai.utils.TAG
 import android.os.Bundle
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
+import android.graphics.Paint
+import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardItem
 
 @Composable
 fun HorizontalTutorialScreen(
@@ -183,18 +190,25 @@ fun HorizontalTutorialScreen(
     LaunchedEffect(uiState.tutorMessage, ttsInitialized, uiState.flowState) {
         val tutorMessageText = uiState.tutorMessage
         if (tutorMessageText != null && ttsInitialized) {
-            if (uiState.flowState != TutorialFlowState.INTERPRETING) {
-                // Small delay to let UI update, then start TTS
-                delay(500)
-                Log.d(TAG, "Triggering TTS speech for: '$tutorMessageText'")
-                
-                // Create unique utterance ID for tracking
-                val utteranceId = "tutor_message_${System.currentTimeMillis()}"
-                val params = Bundle()
-                params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId)
-                
-                tts?.speak(tutorMessageText, TextToSpeech.QUEUE_FLUSH, params, utteranceId)
+            // Small delay to let UI update, then start TTS
+            delay(500)
+            
+            // Prepare the speech text based on the current flow state
+            val speechText = when (uiState.flowState) {
+                TutorialFlowState.INTERPRETING -> {
+                    "Veamos si entendí correctamente. El problema que quieres resolver es $tutorMessageText"
+                }
+                else -> tutorMessageText
             }
+            
+            Log.d(TAG, "Triggering TTS speech for: '$speechText'")
+            
+            // Create unique utterance ID for tracking
+            val utteranceId = "tutor_message_${System.currentTimeMillis()}"
+            val params = Bundle()
+            params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId)
+            
+            tts?.speak(speechText, TextToSpeech.QUEUE_FLUSH, params, utteranceId)
         }
     }
     
@@ -275,7 +289,7 @@ fun HorizontalTutorialScreen(
                         }
                         TutorialFlowState.INTERPRETING -> {
                             Text(
-                                text = "Analizando tu problema...",
+                                text = uiState.tutorMessage ?: "Analizando tu problema...",
                                 color = White,
                                 fontSize = 20.sp,
                                 fontFamily = FontFamily.Cursive,
@@ -301,6 +315,38 @@ fun HorizontalTutorialScreen(
                                 fontFamily = FontFamily.Cursive,
                                 textAlign = TextAlign.Left,
                                 lineHeight = 28.sp
+                            )
+                        }
+                    }
+                    
+                    // Show arithmetic animations below text
+                    if (uiState.flowState == TutorialFlowState.CHATTING) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // Display number line if present
+                        uiState.currentNumberLine?.let { numberLine ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(60.dp)
+                            ) {
+                                ArithmeticNumberLine(
+                                    numberLine = numberLine,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                        
+                        // Display expression if present  
+                        uiState.currentExpression?.let { expression ->
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = expression,
+                                color = White,
+                                fontSize = 18.sp,
+                                fontFamily = FontFamily.Monospace,
+                                textAlign = TextAlign.Left,
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
@@ -570,6 +616,120 @@ private fun LoadingScreen() {
                 style = MaterialTheme.typography.titleMedium,
                 textAlign = TextAlign.Center
             )
+        }
+    }
+} 
+
+@Composable
+private fun ArithmeticNumberLine(
+    numberLine: WhiteboardItem.AnimatedNumberLine,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        drawNumberLine(
+            numberLine = numberLine,
+            canvasSize = size
+        )
+    }
+}
+
+private fun DrawScope.drawNumberLine(
+    numberLine: WhiteboardItem.AnimatedNumberLine,
+    canvasSize: androidx.compose.ui.geometry.Size
+) {
+    // Chalk colors for authentic chalkboard look
+    val chalkWhite = Color(0xFFF5F5DC) // Slightly off-white like real chalk
+    val chalkRed = Color(0xFFDC143C) // Classic red chalk color
+    
+    val textPaint = Paint().apply {
+        color = chalkWhite.toArgb()
+        textSize = 14.dp.toPx()
+        textAlign = Paint.Align.CENTER
+    }
+    val highlightPaint = Paint().apply {
+        color = chalkRed.toArgb()
+        textSize = 16.dp.toPx()
+        textAlign = Paint.Align.CENTER
+        isFakeBoldText = true
+    }
+
+    val yPos = canvasSize.height / 2f
+    val tickHeight = 6.dp.toPx()
+
+    if (numberLine.marks.isEmpty()) {
+        Log.w(TAG, "Cannot draw number line with no marks.")
+        return
+    }
+
+    // Smart scaling: use available width efficiently
+    val padding = 40.dp.toPx()
+    val availableWidth = canvasSize.width - (2 * padding)
+    val startX = padding
+    val endX = canvasSize.width - padding
+
+    // Find the actual min/max values that will be displayed (from marks, not range)
+    val displayedMarks = numberLine.marks.sorted()
+    val minDisplayed = displayedMarks.first()
+    val maxDisplayed = displayedMarks.last()
+    val displaySpan = maxDisplayed - minDisplayed
+    
+    // Draw main line in chalk white
+    drawLine(
+        color = chalkWhite,
+        start = androidx.compose.ui.geometry.Offset(startX, yPos),
+        end = androidx.compose.ui.geometry.Offset(endX, yPos),
+        strokeWidth = 2.dp.toPx()
+    )
+
+    fun getXForValue(value: Int): Float {
+        // Proportional positioning based on the displayed range, not the full range
+        return if (displaySpan == 0) {
+            // If all marks are the same value, center it
+            startX + availableWidth / 2f
+        } else {
+            val normalized = (value - minDisplayed).toFloat() / displaySpan
+            startX + normalized * availableWidth
+        }
+    }
+
+    // Draw marks and labels (only the specified marks, not every number in range)
+    for (markValue in displayedMarks) {
+        val x = getXForValue(markValue)
+        drawLine(
+            color = chalkWhite,
+            start = androidx.compose.ui.geometry.Offset(x, yPos - tickHeight),
+            end = androidx.compose.ui.geometry.Offset(x, yPos + tickHeight),
+            strokeWidth = 1.5.dp.toPx()
+        )
+        drawIntoCanvas { canvas ->
+            canvas.nativeCanvas.drawText(
+                markValue.toString(), 
+                x, 
+                yPos + tickHeight + 20.dp.toPx(), 
+                textPaint
+            )
+        }
+    }
+
+    // Draw highlights (only for values that are actually marked)
+    numberLine.highlight.forEach { highlightValue ->
+        if (highlightValue in displayedMarks) {
+            val x = getXForValue(highlightValue)
+            // Draw a circle for the highlight in red chalk
+            drawCircle(
+                color = chalkRed,
+                radius = 8.dp.toPx(),
+                center = androidx.compose.ui.geometry.Offset(x, yPos)
+            )
+            // Overwrite the label with a highlighted one
+            drawIntoCanvas { canvas ->
+                canvas.nativeCanvas.drawText(
+                    highlightValue.toString(), 
+                    x, 
+                    yPos + tickHeight + 20.dp.toPx(), 
+                    highlightPaint
+                )
+            }
         }
     }
 } 
