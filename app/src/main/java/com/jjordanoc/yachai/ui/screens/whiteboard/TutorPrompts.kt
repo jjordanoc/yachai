@@ -35,9 +35,33 @@ object Primitives {
     )
 
     val data = listOf(
-        AnimationPrimitive("drawBarChart", "Dibuja gráfico de barras", mapOf("labels" to "categorías", "values" to "valores por categoría")),
-        AnimationPrimitive("highlightBar", "Resalta una barra", mapOf("label" to "nombre de categoría")),
-        AnimationPrimitive("appendExpression", "Escribe conclusión o resumen", mapOf("expression" to "Ej: Categoría B tiene 6 votos"))
+        // Basic data organization
+        AnimationPrimitive("drawTable", "Dibuja una tabla de datos", 
+            mapOf("headers" to "nombres de columnas", "rows" to "filas de datos")),
+        AnimationPrimitive("drawTallyChart", "Dibuja conteo con palitos", 
+            mapOf("categories" to "nombres", "counts" to "números a contar")),
+        
+        // Data visualization
+        AnimationPrimitive("drawBarChart", "Dibuja gráfico de barras", 
+            mapOf("labels" to "categorías", "values" to "valores numéricos")),
+        AnimationPrimitive("drawPieChart", "Dibuja gráfico circular", 
+            mapOf("labels" to "categorías", "values" to "valores para cada parte")),
+        AnimationPrimitive("drawDotPlot", "Dibuja gráfico de puntos", 
+            mapOf("values" to "datos numéricos", "min" to "valor mínimo", "max" to "valor máximo")),
+        AnimationPrimitive("drawLineChart", "Dibuja gráfico de líneas", 
+            mapOf("labels" to "categorías o tiempo", "values" to "valores numéricos")),
+        
+        // Data highlighting and analysis
+        AnimationPrimitive("highlightData", "Resalta datos específicos", 
+            mapOf("type" to "bar|dot|slice", "index" to "posición a resaltar")),
+        AnimationPrimitive("drawMeanLine", "Dibuja línea de promedio", 
+            mapOf("value" to "valor del promedio", "label" to "etiqueta opcional")),
+        AnimationPrimitive("showDataRange", "Muestra rango de datos", 
+            mapOf("min" to "valor menor", "max" to "valor mayor")),
+        
+        // Summary and conclusions  
+        AnimationPrimitive("appendDataSummary", "Escribe resumen de datos", 
+            mapOf("summary" to "conclusión o hallazgo principal"))
     )
 }
 
@@ -103,18 +127,17 @@ Eres un tutor visual de matemáticas para estudiantes de quinto grado de primari
 
 ### Tus herramientas:
 
-1. **Pizarra digital**: todo concepto o número debe mostrarse con una animación.
-2. **Frase hablada (`tutor_message`)**: es lo que el estudiante escucha. Debe referirse directamente a lo que se ve en la pizarra. Usa frases claras y amigables.
+1. **Pizarra digital**: todo concepto o número debe mostrarse con una animación, y quedará visible para el estudiante en todo momento.
+2. **Frase hablada (`tutor_message`)**: es lo que el estudiante escucha. NO se muestra en la pizarra, solo se pronuncia. Usa frases claras y amigables que dirijan la atención a la animación.
 """.trimIndent()
 
     val socraticRules = """
 ### Reglas:
 
-- **Nunca expliques con palabras solamente.** Cada paso o número clave debe visualizarse con un comando de animación.
-- **No resuelvas el problema directamente.** Guía al estudiante con preguntas que lo ayuden a pensar.
-- **No muestres más de un paso por vez.** Divide el problema en partes pequeñas y visuales.
-- **Tu meta es que el estudiante llegue a la conclusión por sí mismo.**
-- **Usa como contexto los últimos 2 turnos del historial.**
+- **NO repitas** lo que ya explicaste. Avanza al siguiente paso.
+- **Usa visualizaciones** para cada concepto nuevo.
+- **Una pregunta por vez.** Guía paso a paso.
+- **El estudiante debe descubrir** la respuesta, no se la des directamente.
 """.trimIndent()
 
     val outputFormat = """
@@ -123,7 +146,6 @@ Eres un tutor visual de matemáticas para estudiantes de quinto grado de primari
 ```json
 {
   "tutor_message": "Pregunta clara y breve en español.",
-  "hint": "Consejo opcional en caso de duda.",
   "animation": [
     { "command": "COMANDO", "args": { ... } }
   ]
@@ -131,12 +153,11 @@ Eres un tutor visual de matemáticas para estudiantes de quinto grado de primari
 """.trimIndent()
 
     fun chatHistoryWrapper(chatHistory: String) : String {
-        return listOf(
-            "### Historial reciente:",
-            chatHistory,
-            "### Tu tarea:",
-            "Genera la siguiente visualización guiada con una pregunta clara que ayude al estudiante a razonar el próximo paso."
-        ).joinToString("/n")
+        return if (chatHistory.isNotBlank()) {
+            "Historial: $chatHistory\nDa el siguiente paso sin repetir."
+        } else {
+            "Comienza con una pregunta guía."
+        }
     }
 
     val primitiveDescriptions = primitives.joinToString("\n") { primitive ->
@@ -144,11 +165,20 @@ Eres un tutor visual de matemáticas para estudiantes de quinto grado de primari
         "- `${primitive.name}`\n    $argsFormatted"
     }
 
+    fun primitivesWrapper(primitives: String) : String {
+        return """
+### Comandos de animación disponibles
+$primitives
+
+**Nota**: Las animaciones aparecen verticalmente en la pizarra. Usa una por vez.
+        """.trimIndent()
+    }
+
 
     return listOf(
         commonIntro,
         socraticRules,
-        primitiveDescriptions,
+        primitivesWrapper(primitiveDescriptions),
         outputFormat,
         chatHistoryWrapper(chatHistory)
     ).joinToString("\n\n")

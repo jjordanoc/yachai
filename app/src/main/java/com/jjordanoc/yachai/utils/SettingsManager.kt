@@ -2,6 +2,7 @@ package com.jjordanoc.yachai.utils
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 
 class SettingsManager(context: Context) {
 
@@ -14,7 +15,9 @@ class SettingsManager(context: Context) {
 
     fun isGpuEnabled(): Boolean {
         // Default to true (GPU enabled) if no preference is set yet
-        return sharedPreferences.getBoolean(KEY_GPU_ENABLED, true)
+        val useGpu = sharedPreferences.getBoolean(KEY_GPU_ENABLED, true)
+        Log.d(TAG, "GPU enabled: $useGpu")
+        return useGpu
     }
 
     fun setGpuEnabled(isEnabled: Boolean) {

@@ -19,4 +19,41 @@ sealed class WhiteboardItem {
     ) : WhiteboardItem()
 
     data class Expression(val text: String) : WhiteboardItem()
+    
+    // Data visualization items
+    data class DataTable(
+        val headers: List<String>,
+        val rows: List<List<String>>
+    ) : WhiteboardItem()
+    
+    data class TallyChart(
+        val categories: List<String>,
+        val counts: List<Int>
+    ) : WhiteboardItem()
+    
+    data class BarChart(
+        val labels: List<String>,
+        val values: List<Int>,
+        val highlightedIndex: Int? = null
+    ) : WhiteboardItem()
+    
+    data class PieChart(
+        val labels: List<String>,
+        val values: List<Int>,
+        val highlightedIndex: Int? = null
+    ) : WhiteboardItem()
+    
+    data class DotPlot(
+        val values: List<Int>,
+        val min: Int,
+        val max: Int,
+        val highlightedIndices: List<Int> = emptyList()
+    ) : WhiteboardItem()
+    
+    data class DataSummary(
+        val summary: String,
+        val meanValue: Double? = null,
+        val rangeMin: Int? = null,
+        val rangeMax: Int? = null
+    ) : WhiteboardItem()
 }

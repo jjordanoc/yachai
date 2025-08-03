@@ -4,6 +4,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,7 +26,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -54,6 +57,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.graphics.graphicsLayer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import android.content.Intent
 import androidx.compose.runtime.DisposableEffect
 import java.util.Locale
 import android.util.Log
@@ -134,6 +141,53 @@ fun HorizontalTutorialScreen(
     // --- Text-to-Speech Setup ---
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
     var ttsInitialized by remember { mutableStateOf(false) }
+    
+    // --- Speech Recognition Setup ---
+    var speechRecognizer by remember { mutableStateOf<SpeechRecognizer?>(null) }
+    var isListening by remember { mutableStateOf(false) }
+    
+    // Function to start speech recognition
+    fun startSpeechRecognition() {
+        Log.d(TAG, "Attempting to start speech recognition")
+        Log.d(TAG, "Speech recognizer null: ${speechRecognizer == null}")
+        Log.d(TAG, "Recognition available: ${SpeechRecognizer.isRecognitionAvailable(context)}")
+        
+        speechRecognizer?.let { recognizer ->
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-ES") // Spanish language
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                putExtra(RecognizerIntent.EXTRA_PROMPT, "Describe tu problema de matemáticas...")
+                // Enable offline recognition if available
+                putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+            }
+            recognizer.startListening(intent)
+            Log.d(TAG, "Started speech recognition")
+        } ?: run {
+            Log.w(TAG, "Speech recognizer is null when trying to start recognition")
+            
+            // Try to reinitialize if recognition is now available
+            if (SpeechRecognizer.isRecognitionAvailable(context)) {
+                Log.d(TAG, "Recognition now available, trying to reinitialize...")
+                Toast.makeText(context, "Inicializando reconocimiento de voz...", Toast.LENGTH_SHORT).show()
+                // We can't reinitialize here easily due to scope, so just inform user
+            } else {
+                Toast.makeText(context, "Reconocimiento de voz no disponible. Verifica que Google Speech Services esté instalado.", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+    
+    val micPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                startSpeechRecognition()
+            } else {
+                Toast.makeText(context, "Microphone permission is required", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
 
     DisposableEffect(context) {
         Log.d(TAG, "Initializing TTS engine.")
@@ -184,31 +238,146 @@ fun HorizontalTutorialScreen(
             tts?.shutdown()
         }
     }
+    
+    // --- Speech Recognition Setup ---
+    DisposableEffect(context) {
+        val isAvailable = SpeechRecognizer.isRecognitionAvailable(context)
+        Log.d(TAG, "Speech recognition available: $isAvailable")
+        
+        if (isAvailable) {
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+                setRecognitionListener(object : RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) {
+                        Log.d(TAG, "Speech recognition ready")
+                        isListening = true
+                    }
+                    
+                    override fun onBeginningOfSpeech() {
+                        Log.d(TAG, "Speech recognition started")
+                    }
+                    
+                    override fun onRmsChanged(rmsdB: Float) {
+                        // Voice level feedback - could be used for visual feedback
+                    }
+                    
+                    override fun onBufferReceived(buffer: ByteArray?) {
+                        // Audio buffer - not needed for basic implementation
+                    }
+                    
+                    override fun onEndOfSpeech() {
+                        Log.d(TAG, "Speech recognition ended")
+                        isListening = false
+                    }
+                    
+                    override fun onError(error: Int) {
+                        val errorMessage = when (error) {
+                            SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
+                            SpeechRecognizer.ERROR_CLIENT -> "Client side error"
+                            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
+                            SpeechRecognizer.ERROR_NETWORK -> "Network error"
+                            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
+                            SpeechRecognizer.ERROR_NO_MATCH -> "No speech match"
+                            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Recognition service busy"
+                            SpeechRecognizer.ERROR_SERVER -> "Server error"
+                            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input"
+                            else -> "Unknown error: $error"
+                        }
+                        Log.e(TAG, "Speech recognition error: $errorMessage")
+                        isListening = false
+                        if (error != SpeechRecognizer.ERROR_NO_MATCH && error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+                            Toast.makeText(context, "Error de reconocimiento: $errorMessage", Toast.LENGTH_LONG).show()
+                        } else if (error == SpeechRecognizer.ERROR_NO_MATCH) {
+                            Toast.makeText(context, "No se pudo entender lo que dijiste. Intenta de nuevo.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    
+                    override fun onResults(results: Bundle?) {
+                        results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.let { matches ->
+                            if (matches.isNotEmpty()) {
+                                val recognizedText = matches[0]
+                                Log.d(TAG, "Speech recognized: $recognizedText")
+                                viewModel.onTextInputChanged(recognizedText)
+                                isListening = false
+                            }
+                        }
+                    }
+                    
+                    override fun onPartialResults(partialResults: Bundle?) {
+                        // Could be used for real-time text updates
+                    }
+                    
+                    override fun onEvent(eventType: Int, params: Bundle?) {
+                        // Additional events - not needed for basic implementation
+                    }
+                })
+            }
+            Log.d(TAG, "Speech recognizer initialized successfully")
+        } else {
+            Log.w(TAG, "Speech recognition not available on this device")
+            
+            // Try to provide more specific guidance
+            val packageManager = context.packageManager
+            val hasGoogleApp = try {
+                packageManager.getPackageInfo("com.google.android.googlequicksearchbox", 0)
+                true
+            } catch (e: Exception) {
+                false
+            }
+            
+            val message = if (!hasGoogleApp) {
+                "Reconocimiento de voz no disponible. Instala la app de Google desde Play Store."
+            } else {
+                "Reconocimiento de voz no disponible. Verifica que Google Speech Services esté habilitado en Configuración."
+            }
+            
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            Log.w(TAG, "Google app available: $hasGoogleApp")
+        }
+        
+        onDispose {
+            Log.d(TAG, "Cleaning up speech recognizer")
+            speechRecognizer?.destroy()
+        }
+    }
     // --- End of TTS Setup ---
 
     // Trigger speech synchronized with alpaca speaking animation
     LaunchedEffect(uiState.tutorMessage, ttsInitialized, uiState.flowState) {
         val tutorMessageText = uiState.tutorMessage
         if (tutorMessageText != null && ttsInitialized) {
-            // Small delay to let UI update, then start TTS
-            delay(500)
+            // Check if this is a placeholder/thinking message that shouldn't be spoken
+            val shouldNotSpeak = tutorMessageText.contains("Pensando") || 
+                                tutorMessageText.contains("Estoy leyendo") ||
+                                tutorMessageText.contains("Procesando") ||
+                                tutorMessageText.contains("...")
             
-            // Prepare the speech text based on the current flow state
-            val speechText = when (uiState.flowState) {
-                TutorialFlowState.INTERPRETING -> {
-                    "Veamos si entendí correctamente. El problema que quieres resolver es $tutorMessageText"
+            if (!shouldNotSpeak) {
+                // Small delay to let UI update, then start TTS
+                delay(500)
+                
+                // Prepare the speech text based on the current flow state
+                val speechText = when (uiState.flowState) {
+                    TutorialFlowState.INTERPRETING -> {
+                        "¿Es este el problema que quieres resolver? $tutorMessageText"
+                    }
+                    else -> tutorMessageText
                 }
-                else -> tutorMessageText
+                
+                Log.d(TAG, "Triggering TTS speech for: '$speechText'")
+                
+                // Create unique utterance ID for tracking
+                val utteranceId = "tutor_message_${System.currentTimeMillis()}"
+                val params = Bundle()
+                params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId)
+                
+                tts?.speak(speechText, TextToSpeech.QUEUE_FLUSH, params, utteranceId)
+            } else {
+                Log.d(TAG, "Skipping TTS for placeholder message: '$tutorMessageText'")
+                // Still trigger alpaca animation for visual feedback even if not speaking
+                viewModel.startAlpacaSpeaking()
+                delay(2000) // Show animation for 2 seconds
+                viewModel.stopAlpacaSpeaking()
             }
-            
-            Log.d(TAG, "Triggering TTS speech for: '$speechText'")
-            
-            // Create unique utterance ID for tracking
-            val utteranceId = "tutor_message_${System.currentTimeMillis()}"
-            val params = Bundle()
-            params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId)
-            
-            tts?.speak(speechText, TextToSpeech.QUEUE_FLUSH, params, utteranceId)
         }
     }
     
@@ -234,151 +403,216 @@ fun HorizontalTutorialScreen(
                     shape = RoundedCornerShape(8.dp)
                 )
         ) {
-            // Content area with proper padding
+            // Content area with minimal padding and scrolling fallback
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(vertical = 60.dp, horizontal = 20.dp)
+                    .padding(vertical = 8.dp, horizontal = 20.dp)
             ) {
                 // Left navigation button
                 IconButton(
                     onClick = { 
-                        // Handle left navigation and trigger alpaca speaking
-                        viewModel.triggerAlpacaSpeaking()
+                        viewModel.navigateToPreviousMessage()
                     },
+                    enabled = viewModel.canNavigatePrevious(),
                     modifier = Modifier
                         .align(Alignment.CenterStart)
                         .size(50.dp)
-                        .alpha(0.5f)
                 ) {
                     Icon(
                         imageVector = Icons.Default.ChevronLeft,
                         contentDescription = "Previous",
-                        tint = White,
+                        tint = if (viewModel.canNavigatePrevious()) White else TutorialGray,
                         modifier = Modifier.size(40.dp)
                     )
                 }
                 
-                // Main content text - show different content based on state
-                Column(
+                // History indicator (top-right of content area)
+                if (uiState.isViewingHistory) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 16.dp, end = if (isLandscape) 220.dp else 100.dp)
+                            .background(
+                                color = White.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "Historial ${uiState.currentHistoryIndex + 1}/${uiState.chatHistory.size}",
+                            color = White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+                
+                // Main content text - show different content based on state with scrolling fallback
+                LazyColumn(
                     modifier = Modifier
                         .align(Alignment.CenterStart)
                         .padding(start = 80.dp, end = if (isLandscape) 200.dp else 80.dp)
-                        .fillMaxWidth(),
-                    horizontalAlignment = Alignment.Start
+                        .fillMaxSize(),
+                    horizontalAlignment = Alignment.Start,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    when (uiState.flowState) {
-                        TutorialFlowState.INITIAL -> {
-                            Text(
-                                text = "Un número es divisible por 5 si termina en 0 o 5.",
-                                color = White,
-                                fontSize = 20.sp,
-                                fontFamily = FontFamily.Cursive,
-                                textAlign = TextAlign.Left,
-                                lineHeight = 28.sp
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "Un número es divisible por 25 si termina en 00, 25, 50 o 75.",
-                                color = White,
-                                fontSize = 20.sp,
-                                fontFamily = FontFamily.Cursive,
-                                textAlign = TextAlign.Left,
-                                lineHeight = 28.sp
-                            )
-                        }
-                        TutorialFlowState.INTERPRETING -> {
-                            Text(
-                                text = uiState.tutorMessage ?: "Analizando tu problema...",
-                                color = White,
-                                fontSize = 20.sp,
-                                fontFamily = FontFamily.Cursive,
-                                textAlign = TextAlign.Left,
-                                lineHeight = 28.sp
-                            )
-                        }
-                        TutorialFlowState.AWAITING_CONFIRMATION -> {
-                            Text(
-                                text = uiState.tutorMessage ?: "¿Es esto correcto?",
-                                color = White,
-                                fontSize = 20.sp,
-                                fontFamily = FontFamily.Cursive,
-                                textAlign = TextAlign.Left,
-                                lineHeight = 28.sp
-                            )
-                        }
-                        TutorialFlowState.CHATTING -> {
-                            Text(
-                                text = uiState.tutorMessage ?: "¡Sigamos aprendiendo!",
-                                color = White,
-                                fontSize = 20.sp,
-                                fontFamily = FontFamily.Cursive,
-                                textAlign = TextAlign.Left,
-                                lineHeight = 28.sp
-                            )
-                        }
-                    }
-                    
-                    // Show arithmetic animations below text
-                    if (uiState.flowState == TutorialFlowState.CHATTING) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        // Display number line if present
-                        uiState.currentNumberLine?.let { numberLine ->
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(60.dp)
-                            ) {
-                                ArithmeticNumberLine(
-                                    numberLine = numberLine,
-                                    modifier = Modifier.fillMaxSize()
+                    item {
+                                                Column(
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            // Show initial lesson content when in INITIAL state
+                            if (uiState.flowState == TutorialFlowState.INITIAL) {
+                                Text(
+                                    text = "Un número es divisible por 5 si termina en 0 o 5.",
+                                    color = White,
+                                    fontSize = 20.sp,
+                                    fontFamily = FontFamily.Cursive,
+                                    textAlign = TextAlign.Left,
+                                    lineHeight = 28.sp
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "Un número es divisible por 25 si termina en 00, 25, 50 o 75.",
+                                    color = White,
+                                    fontSize = 20.sp,
+                                    fontFamily = FontFamily.Cursive,
+                                    textAlign = TextAlign.Left,
+                                    lineHeight = 28.sp
+                                )
+                            }
+                            
+                            // Show tutor message in INTERPRETING and AWAITING_CONFIRMATION states
+                            if (uiState.flowState == TutorialFlowState.INTERPRETING || 
+                                uiState.flowState == TutorialFlowState.AWAITING_CONFIRMATION) {
+                                uiState.tutorMessage?.let { message ->
+                                    Text(
+                                        text = message,
+                                        color = White,
+                                        fontSize = 18.sp,
+                                        fontFamily = FontFamily.Cursive,
+                                        textAlign = TextAlign.Left,
+                                        lineHeight = 24.sp,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
+                            }
+                            
+                            // Show arithmetic animations (visual content only) when CHATTING
+                            if (uiState.flowState == TutorialFlowState.CHATTING) {
+                                // Display number line if present
+                                uiState.currentNumberLine?.let { numberLine ->
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(60.dp)
+                                    ) {
+                                        ArithmeticNumberLine(
+                                            numberLine = numberLine,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
+                                
+                                // Display expression if present  
+                                uiState.currentExpression?.let { expression ->
+                                    Text(
+                                        text = expression,
+                                        color = White,
+                                        fontSize = 18.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        textAlign = TextAlign.Left,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
+                                
+                                // Display data visualizations vertically
+                                uiState.currentDataTable?.let { table ->
+                                    DataTableComponent(
+                                        table = table,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
+                                
+                                uiState.currentTallyChart?.let { tally ->
+                                    TallyChartComponent(
+                                        tallyChart = tally,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
+                                
+                                uiState.currentBarChart?.let { barChart ->
+                                    BarChartComponent(
+                                        barChart = barChart,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(120.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
+                                
+                                uiState.currentPieChart?.let { pieChart ->
+                                    PieChartComponent(
+                                        pieChart = pieChart,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(120.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
+                                
+                                uiState.currentDotPlot?.let { dotPlot ->
+                                    DotPlotComponent(
+                                        dotPlot = dotPlot,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(80.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
+                                
+                                uiState.currentDataSummary?.let { summary ->
+                                    DataSummaryComponent(
+                                        dataSummary = summary,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
+                            }
+                            
+                            // Show error message if needed
+                            if (uiState.showConfirmationFailureMessage) {
+                                Text(
+                                    text = "Por favor, vuelve a intentarlo escribiendo el problema en texto o subiendo una imagen.",
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontSize = 16.sp,
+                                    textAlign = TextAlign.Left,
+                                    lineHeight = 22.sp
                                 )
                             }
                         }
-                        
-                        // Display expression if present  
-                        uiState.currentExpression?.let { expression ->
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = expression,
-                                color = White,
-                                fontSize = 18.sp,
-                                fontFamily = FontFamily.Monospace,
-                                textAlign = TextAlign.Left,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                    
-                    // Show error message if needed
-                    if (uiState.showConfirmationFailureMessage) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "Por favor, vuelve a intentarlo escribiendo el problema en texto o subiendo una imagen.",
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 16.sp,
-                            textAlign = TextAlign.Left,
-                            lineHeight = 22.sp
-                        )
                     }
                 }
                 
                 // Right navigation button
                 IconButton(
                     onClick = { 
-                        // Handle right navigation and trigger alpaca speaking
-                        viewModel.triggerAlpacaSpeaking()
+                        viewModel.navigateToNextMessage()
                     },
+                    enabled = viewModel.canNavigateNext(),
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
                         .size(50.dp)
-                        .alpha(0.5f)
                 ) {
                     Icon(
                         imageVector = Icons.Default.ChevronRight,
                         contentDescription = "Next",
-                        tint = White,
+                        tint = if (viewModel.canNavigateNext()) White else TutorialGray,
                         modifier = Modifier.size(40.dp)
                     )
                 }
@@ -564,17 +798,31 @@ fun HorizontalTutorialScreen(
                     // Microphone button
                     FloatingActionButton(
                         onClick = { 
-                            // Handle microphone action - trigger alpaca speaking for now
-                            viewModel.triggerAlpacaSpeaking() 
+                            if (isListening) {
+                                // Stop listening
+                                speechRecognizer?.stopListening()
+                                isListening = false
+                            } else {
+                                // Start speech recognition
+                                when (PackageManager.PERMISSION_GRANTED) {
+                                    ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) -> {
+                                        startSpeechRecognition()
+                                    }
+                                                                         else -> {
+                                         // Request microphone permission
+                                         micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                     }
+                                }
+                            }
                         },
                         modifier = Modifier.size(70.dp),
                         shape = CircleShape,
-                        containerColor = TutorialTeal,
+                        containerColor = if (isListening) MaterialTheme.colorScheme.error else TutorialTeal,
                         contentColor = White
                     ) {
                         Icon(
                             imageVector = Icons.Default.Mic,
-                            contentDescription = "Microphone",
+                            contentDescription = if (isListening) "Stop Recording" else "Start Voice Input",
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -728,6 +976,548 @@ private fun DrawScope.drawNumberLine(
                     x, 
                     yPos + tickHeight + 20.dp.toPx(), 
                     highlightPaint
+                )
+            }
+        }
+    }
+}
+
+// Data Visualization Components
+@Composable
+private fun DataTableComponent(
+    table: WhiteboardItem.DataTable,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+    ) {
+        // Headers with overflow protection
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            table.headers.forEach { header ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(
+                            color = White.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .padding(4.dp)
+                ) {
+                    Text(
+                        text = header,
+                        color = White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(6.dp))
+        
+        // Rows with overflow protection
+        table.rows.forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                row.forEachIndexed { index, cell ->
+                    if (index < table.headers.size) { // Ensure we don't exceed header count
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .border(
+                                    width = 1.dp,
+                                    color = White.copy(alpha = 0.3f),
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                                .padding(4.dp)
+                        ) {
+                            Text(
+                                text = cell,
+                                color = White,
+                                fontSize = 11.sp,
+                                textAlign = TextAlign.Center,
+                                maxLines = 2,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                modifier = Modifier.fillMaxWidth(),
+                                lineHeight = 12.sp
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(3.dp))
+        }
+    }
+}
+
+@Composable
+private fun TallyChartComponent(
+    tallyChart: WhiteboardItem.TallyChart,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+    ) {
+        tallyChart.categories.forEachIndexed { index, category ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Category name with overflow protection
+                Text(
+                    text = category,
+                    color = White,
+                    fontSize = 13.sp,
+                    modifier = Modifier.weight(0.3f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                
+                // Draw tally marks with proper spacing
+                val count = tallyChart.counts.getOrNull(index) ?: 0
+                val tallyText = buildString {
+                    repeat(count / 5) { append("㸧 ") } // Groups of 5
+                    repeat(count % 5) { append("| ") } // Individual marks
+                }
+                
+                Box(
+                    modifier = Modifier
+                        .weight(0.5f)
+                        .background(
+                            color = White.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .padding(4.dp)
+                ) {
+                    Text(
+                        text = tallyText.ifEmpty { "—" },
+                        color = Color(0xFFFFE4B5), // Light yellow for tally marks
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 1,
+                        overflow = TextOverflow.Clip
+                    )
+                }
+                
+                // Count number
+                Box(
+                    modifier = Modifier
+                        .width(40.dp)
+                        .background(
+                            color = White.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .padding(4.dp)
+                ) {
+                    Text(
+                        text = count.toString(),
+                        color = Color(0xFF87CEEB), // Light blue for count
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+            if (index < tallyChart.categories.size - 1) {
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun BarChartComponent(
+    barChart: WhiteboardItem.BarChart,
+    modifier: Modifier = Modifier
+) {
+    if (barChart.labels.isEmpty() || barChart.values.isEmpty()) {
+        Box(modifier = modifier) {
+            Text(
+                text = "Gráfico de Barras (sin datos)",
+                color = White,
+                fontSize = 14.sp,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+        return
+    }
+
+    Canvas(modifier = modifier.fillMaxSize()) {
+        drawBarChart(
+            labels = barChart.labels,
+            values = barChart.values,
+            highlightedIndex = barChart.highlightedIndex,
+            canvasSize = size
+        )
+    }
+}
+
+@Composable
+private fun PieChartComponent(
+    pieChart: WhiteboardItem.PieChart,
+    modifier: Modifier = Modifier
+) {
+    if (pieChart.labels.isEmpty() || pieChart.values.isEmpty()) {
+        Box(modifier = modifier) {
+            Text(
+                text = "Gráfico Circular (sin datos)",
+                color = White,
+                fontSize = 14.sp,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+        return
+    }
+
+    Canvas(modifier = modifier.fillMaxSize()) {
+        drawPieChart(
+            labels = pieChart.labels,
+            values = pieChart.values,
+            highlightedIndex = pieChart.highlightedIndex,
+            canvasSize = size
+        )
+    }
+}
+
+@Composable
+private fun DotPlotComponent(
+    dotPlot: WhiteboardItem.DotPlot,
+    modifier: Modifier = Modifier
+) {
+    if (dotPlot.values.isEmpty()) {
+        Box(modifier = modifier) {
+            Text(
+                text = "Diagrama de Puntos (sin datos)",
+                color = White,
+                fontSize = 14.sp,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+        return
+    }
+
+    Canvas(modifier = modifier.fillMaxSize()) {
+        drawDotPlot(
+            values = dotPlot.values,
+            min = dotPlot.min,
+            max = dotPlot.max,
+            highlightedIndices = dotPlot.highlightedIndices,
+            canvasSize = size
+        )
+    }
+}
+
+@Composable
+private fun DataSummaryComponent(
+    dataSummary: WhiteboardItem.DataSummary,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(
+                color = White.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(8.dp)
+            )
+            .padding(12.dp)
+    ) {
+        Text(
+            text = dataSummary.summary,
+            color = White,
+            fontSize = 15.sp,
+            fontFamily = FontFamily.Cursive,
+            lineHeight = 20.sp,
+            modifier = Modifier.fillMaxWidth()
+        )
+        
+        dataSummary.meanValue?.let { mean ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start
+            ) {
+                Text(
+                    text = "Promedio: ",
+                    color = White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = String.format("%.1f", mean),
+                    color = Color(0xFFFFE4B5), // Light yellow
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        
+        if (dataSummary.rangeMin != null && dataSummary.rangeMax != null) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start
+            ) {
+                Text(
+                    text = "Rango: ",
+                    color = White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = "${dataSummary.rangeMin} - ${dataSummary.rangeMax}",
+                    color = Color(0xFF87CEEB), // Light blue
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+// Canvas drawing functions for charts
+private fun DrawScope.drawBarChart(
+    labels: List<String>,
+    values: List<Int>,
+    highlightedIndex: Int?,
+    canvasSize: androidx.compose.ui.geometry.Size
+) {
+    if (labels.isEmpty() || values.isEmpty()) return
+    
+    val maxValue = values.maxOrNull()?.toFloat() ?: 1f
+    val barCount = minOf(labels.size, values.size)
+    val barWidth = (canvasSize.width * 0.8f) / barCount
+    val barSpacing = barWidth * 0.2f
+    val chartHeight = canvasSize.height * 0.7f
+    val baseY = canvasSize.height * 0.85f
+    
+    val chalkWhite = Color(0xFFF5F5DC)
+    val chalkBlue = Color(0xFF87CEEB)
+    val chalkRed = Color(0xFFDC143C)
+    
+    val textPaint = Paint().apply {
+        color = chalkWhite.toArgb()
+        textSize = 10.dp.toPx()
+        textAlign = Paint.Align.CENTER
+    }
+    
+    repeat(barCount) { index ->
+        val value = values.getOrNull(index) ?: 0
+        val label = labels.getOrNull(index) ?: ""
+        val isHighlighted = highlightedIndex == index
+        
+        val barHeight = (value.toFloat() / maxValue) * chartHeight
+        val barX = (canvasSize.width * 0.1f) + (index * (barWidth + barSpacing))
+        val barY = baseY - barHeight
+        
+        // Draw bar
+        val barColor = if (isHighlighted) chalkRed else chalkBlue
+        drawRect(
+            color = barColor,
+            topLeft = androidx.compose.ui.geometry.Offset(barX, barY),
+            size = androidx.compose.ui.geometry.Size(barWidth, barHeight)
+        )
+        
+        // Draw value on top of bar
+        drawIntoCanvas { canvas ->
+            canvas.nativeCanvas.drawText(
+                value.toString(),
+                barX + barWidth/2,
+                barY - 5.dp.toPx(),
+                textPaint
+            )
+        }
+        
+        // Draw label below bar (truncate if too long)
+        val truncatedLabel = if (label.length > 8) "${label.take(6)}.." else label
+        drawIntoCanvas { canvas ->
+            canvas.nativeCanvas.drawText(
+                truncatedLabel,
+                barX + barWidth/2,
+                baseY + 15.dp.toPx(),
+                textPaint
+            )
+        }
+    }
+}
+
+private fun DrawScope.drawPieChart(
+    labels: List<String>,
+    values: List<Int>,
+    highlightedIndex: Int?,
+    canvasSize: androidx.compose.ui.geometry.Size
+) {
+    if (labels.isEmpty() || values.isEmpty()) return
+    
+    val total = values.sum().toFloat()
+    if (total <= 0) return
+    
+    val centerX = canvasSize.width / 2f
+    val centerY = canvasSize.height / 2f
+    val radius = minOf(centerX, centerY) * 0.7f
+    
+    val colors = listOf(
+        Color(0xFF87CEEB), // Light blue
+        Color(0xFFFFE4B5), // Light yellow
+        Color(0xFFDC143C), // Red
+        Color(0xFF98FB98), // Light green
+        Color(0xFFDDA0DD), // Plum
+        Color(0xFFF0E68C)  // Khaki
+    )
+    
+    val chalkWhite = Color(0xFFF5F5DC)
+    val textPaint = Paint().apply {
+        color = chalkWhite.toArgb()
+        textSize = 10.dp.toPx()
+        textAlign = Paint.Align.CENTER
+    }
+    
+    var currentAngle = -90f // Start from top
+    
+    repeat(minOf(labels.size, values.size)) { index ->
+        val value = values.getOrNull(index) ?: 0
+        val label = labels.getOrNull(index) ?: ""
+        val percentage = (value.toFloat() / total) * 100f
+        val sweepAngle = (value.toFloat() / total) * 360f
+        
+        val isHighlighted = highlightedIndex == index
+        val sliceRadius = if (isHighlighted) radius * 1.1f else radius
+        
+        val color = colors[index % colors.size]
+        
+        // Draw pie slice
+        drawArc(
+            color = color,
+            startAngle = currentAngle,
+            sweepAngle = sweepAngle,
+            useCenter = true,
+            topLeft = androidx.compose.ui.geometry.Offset(
+                centerX - sliceRadius,
+                centerY - sliceRadius
+            ),
+            size = androidx.compose.ui.geometry.Size(sliceRadius * 2, sliceRadius * 2)
+        )
+        
+        // Draw label at the middle of the slice
+        if (percentage >= 5f) { // Only show label if slice is large enough
+            val labelAngle = Math.toRadians((currentAngle + sweepAngle / 2).toDouble())
+            val labelX = centerX + (sliceRadius * 0.7f * kotlin.math.cos(labelAngle)).toFloat()
+            val labelY = centerY + (sliceRadius * 0.7f * kotlin.math.sin(labelAngle)).toFloat()
+            
+            val truncatedLabel = if (label.length > 6) "${label.take(4)}.." else label
+            drawIntoCanvas { canvas ->
+                canvas.nativeCanvas.drawText(
+                    truncatedLabel,
+                    labelX,
+                    labelY - 5.dp.toPx(),
+                    textPaint
+                )
+                canvas.nativeCanvas.drawText(
+                    "${percentage.toInt()}%",
+                    labelX,
+                    labelY + 10.dp.toPx(),
+                    textPaint
+                )
+            }
+        }
+        
+        currentAngle += sweepAngle
+    }
+}
+
+private fun DrawScope.drawDotPlot(
+    values: List<Int>,
+    min: Int,
+    max: Int,
+    highlightedIndices: List<Int>,
+    canvasSize: androidx.compose.ui.geometry.Size
+) {
+    if (values.isEmpty() || max <= min) return
+    
+    val range = max - min
+    val dotRadius = 3.dp.toPx()
+    val baseY = canvasSize.height * 0.7f
+    val plotWidth = canvasSize.width * 0.8f
+    val plotStartX = canvasSize.width * 0.1f
+    
+    val chalkWhite = Color(0xFFF5F5DC)
+    val chalkBlue = Color(0xFF87CEEB)
+    val chalkRed = Color(0xFFDC143C)
+    
+    val textPaint = Paint().apply {
+        color = chalkWhite.toArgb()
+        textSize = 10.dp.toPx()
+        textAlign = Paint.Align.CENTER
+    }
+    
+    // Draw axis line
+    drawLine(
+        color = chalkWhite,
+        start = androidx.compose.ui.geometry.Offset(plotStartX, baseY),
+        end = androidx.compose.ui.geometry.Offset(plotStartX + plotWidth, baseY),
+        strokeWidth = 1.dp.toPx()
+    )
+    
+    // Draw scale marks and labels
+    val markCount = minOf(11, range + 1) // Max 11 marks
+    repeat(markCount) { i ->
+        val value = min + (range.toFloat() / (markCount - 1) * i).toInt()
+        val x = plotStartX + (plotWidth / (markCount - 1) * i)
+        
+        // Draw tick mark
+        drawLine(
+            color = chalkWhite,
+            start = androidx.compose.ui.geometry.Offset(x, baseY - 5.dp.toPx()),
+            end = androidx.compose.ui.geometry.Offset(x, baseY + 5.dp.toPx()),
+            strokeWidth = 1.dp.toPx()
+        )
+        
+        // Draw label
+        drawIntoCanvas { canvas ->
+            canvas.nativeCanvas.drawText(
+                value.toString(),
+                x,
+                baseY + 20.dp.toPx(),
+                textPaint
+            )
+        }
+    }
+    
+    // Count frequency of each value
+    val valueCounts = values.groupingBy { it }.eachCount()
+    
+    // Draw dots
+    valueCounts.forEach { (value, count) ->
+        if (value in min..max) {
+            val x = plotStartX + ((value - min).toFloat() / range) * plotWidth
+            
+            repeat(count) { stackIndex ->
+                val y = baseY - 20.dp.toPx() - (stackIndex * dotRadius * 2.5f)
+                val isHighlighted = highlightedIndices.contains(values.indexOf(value))
+                val dotColor = if (isHighlighted) chalkRed else chalkBlue
+                
+                drawCircle(
+                    color = dotColor,
+                    radius = dotRadius,
+                    center = androidx.compose.ui.geometry.Offset(x, y)
                 )
             }
         }

@@ -668,6 +668,25 @@ fun MainWhiteboardContent(
                                 Size(cellSize, cellSize),
                                 progress
                             )
+                            // Data visualization items - placeholder implementations
+                            is WhiteboardItem.DataTable -> {
+                                // TODO: Implement table drawing
+                            }
+                            is WhiteboardItem.TallyChart -> {
+                                // TODO: Implement tally chart drawing  
+                            }
+                            is WhiteboardItem.BarChart -> {
+                                // TODO: Implement bar chart drawing
+                            }
+                            is WhiteboardItem.PieChart -> {
+                                // TODO: Implement pie chart drawing
+                            }
+                            is WhiteboardItem.DotPlot -> {
+                                // TODO: Implement dot plot drawing
+                            }
+                            is WhiteboardItem.DataSummary -> {
+                                // TODO: Implement data summary drawing
+                            }
                         }
                     }
                 }

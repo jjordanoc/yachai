@@ -33,6 +33,23 @@ enum class TutorialFlowState {
     CHATTING
 }
 
+data class ChatHistoryEntry(
+    val tutorMessage: String,
+    val userMessage: String, // Add user input to track the full conversation
+    val subject: String,
+    val flowState: TutorialFlowState,
+    val numberLine: WhiteboardItem.AnimatedNumberLine? = null,
+    val expression: String? = null,
+    // Data visualization history
+    val dataTable: WhiteboardItem.DataTable? = null,
+    val tallyChart: WhiteboardItem.TallyChart? = null,
+    val barChart: WhiteboardItem.BarChart? = null,
+    val pieChart: WhiteboardItem.PieChart? = null,
+    val dotPlot: WhiteboardItem.DotPlot? = null,
+    val dataSummary: WhiteboardItem.DataSummary? = null,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
 data class TutorialState(
     val textInput: String = "",
     val selectedImageUri: Uri? = null,
@@ -45,7 +62,18 @@ data class TutorialState(
     val isAlpacaSpeaking: Boolean = false,
     val currentNumberLine: WhiteboardItem.AnimatedNumberLine? = null,
     val currentExpression: String? = null,
-    val animationTrigger: Long = 0L // Used to trigger animation recomposition
+    val animationTrigger: Long = 0L, // Used to trigger animation recomposition
+    // Data visualization state
+    val currentDataTable: WhiteboardItem.DataTable? = null,
+    val currentTallyChart: WhiteboardItem.TallyChart? = null,
+    val currentBarChart: WhiteboardItem.BarChart? = null,
+    val currentPieChart: WhiteboardItem.PieChart? = null,
+    val currentDotPlot: WhiteboardItem.DotPlot? = null,
+    val currentDataSummary: WhiteboardItem.DataSummary? = null,
+    // Chat history functionality
+    val chatHistory: List<ChatHistoryEntry> = emptyList(),
+    val currentHistoryIndex: Int = -1, // -1 means showing current/live content
+    val isViewingHistory: Boolean = false
 )
 
 class TutorialViewModel(application: Application) : AndroidViewModel(application) {
@@ -69,7 +97,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
             )
 
             try {
-                LlmHelper.switchDataSource(LlmHelper.DataSourceType.AZURE, context, modelConfig)
+                LlmHelper.switchDataSource(LlmHelper.DataSourceType.MEDIAPIPE, context, modelConfig)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to initialize model: ${e.localizedMessage}")
                 _uiState.update {
@@ -161,13 +189,20 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 currentState.subject
             }
 
-            // Process animations for arithmetic primitives
+            // Process animations for all primitives
             var newNumberLine = currentState.currentNumberLine
             var newExpression = currentState.currentExpression
+            var newDataTable = currentState.currentDataTable
+            var newTallyChart = currentState.currentTallyChart
+            var newBarChart = currentState.currentBarChart
+            var newPieChart = currentState.currentPieChart
+            var newDotPlot = currentState.currentDotPlot
+            var newDataSummary = currentState.currentDataSummary
             val animationTrigger = System.currentTimeMillis()
 
             for (command in response.animation) {
                 when (command.command) {
+                    // Arithmetic commands
                     "drawNumberLine" -> {
                         Log.d(TAG, "drawNumberLine command found with args: ${command.args}")
                         val range = command.args.range
@@ -200,25 +235,143 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                             newExpression = expression
                         }
                     }
+                    
+                    // Data visualization commands
+                    "drawTable" -> {
+                        command.args.headers?.let { headers ->
+                            command.args.rows?.let { rows ->
+                                Log.d(TAG, "drawTable command found with ${headers.size} headers and ${rows.size} rows")
+                                newDataTable = WhiteboardItem.DataTable(
+                                    headers = headers,
+                                    rows = rows
+                                )
+                            }
+                        }
+                    }
+                    "drawTallyChart" -> {
+                        command.args.categories?.let { categories ->
+                            command.args.counts?.let { counts ->
+                                Log.d(TAG, "drawTallyChart command found with ${categories.size} categories")
+                                newTallyChart = WhiteboardItem.TallyChart(
+                                    categories = categories,
+                                    counts = counts
+                                )
+                            }
+                        }
+                    }
+                    "drawBarChart" -> {
+                        command.args.labels?.let { labels ->
+                            command.args.values?.let { values ->
+                                Log.d(TAG, "drawBarChart command found with ${labels.size} bars")
+                                newBarChart = WhiteboardItem.BarChart(
+                                    labels = labels,
+                                    values = values
+                                )
+                            }
+                        }
+                    }
+                    "drawPieChart" -> {
+                        command.args.labels?.let { labels ->
+                            command.args.values?.let { values ->
+                                Log.d(TAG, "drawPieChart command found with ${labels.size} slices")
+                                newPieChart = WhiteboardItem.PieChart(
+                                    labels = labels,
+                                    values = values
+                                )
+                            }
+                        }
+                    }
+                    "drawDotPlot" -> {
+                        command.args.values?.let { values ->
+                            val min = command.args.min ?: values.minOrNull() ?: 0
+                            val max = command.args.max ?: values.maxOrNull() ?: 10
+                            Log.d(TAG, "drawDotPlot command found with ${values.size} values")
+                            newDotPlot = WhiteboardItem.DotPlot(
+                                values = values,
+                                min = min,
+                                max = max
+                            )
+                        }
+                    }
+                    "highlightData" -> {
+                        command.args.index?.let { index ->
+                            when (command.args.type) {
+                                "bar" -> newBarChart = newBarChart?.copy(highlightedIndex = index)
+                                "slice" -> newPieChart = newPieChart?.copy(highlightedIndex = index)
+                                "dot" -> newDotPlot = newDotPlot?.copy(highlightedIndices = listOf(index))
+                            }
+                            Log.d(TAG, "highlightData command: highlighted ${command.args.type} at index $index")
+                        }
+                    }
+                    "appendDataSummary" -> {
+                        command.args.summary?.let { summary ->
+                            Log.d(TAG, "appendDataSummary command found: $summary")
+                            newDataSummary = WhiteboardItem.DataSummary(
+                                summary = summary,
+                                meanValue = command.args.value,
+                                rangeMin = command.args.min,
+                                rangeMax = command.args.max
+                            )
+                        }
+                    }
+                    "drawMeanLine", "showDataRange" -> {
+                        // These update existing charts, handled in UI
+                        Log.d(TAG, "${command.command} command processed")
+                    }
                     else -> {
                         Log.w(TAG, "Unknown animation command: ${command.command}")
                     }
                 }
             }
 
-            _uiState.update { state ->
-                state.copy(
-                    tutorMessage = response.tutorMessage,
-                    subject = extractedSubject,
-                    flowState = newFlowState,
-                    isAlpacaSpeaking = true,
-                    currentNumberLine = newNumberLine,
-                    currentExpression = newExpression,
-                    animationTrigger = animationTrigger
-                ).also {
-                    Log.d(TAG, "State updated with new tutor message, subject: '$extractedSubject', animations, and alpaca speaking triggered.")
-                }
-            }
+                               val updatedState = _uiState.value.let { state ->
+                       val newState = state.copy(
+                           tutorMessage = response.tutorMessage,
+                           subject = extractedSubject,
+                           flowState = newFlowState,
+                           isAlpacaSpeaking = true,
+                           currentNumberLine = newNumberLine,
+                           currentExpression = newExpression,
+                           currentDataTable = newDataTable,
+                           currentTallyChart = newTallyChart,
+                           currentBarChart = newBarChart,
+                           currentPieChart = newPieChart,
+                           currentDotPlot = newDotPlot,
+                           currentDataSummary = newDataSummary,
+                           animationTrigger = animationTrigger,
+                           // Reset history navigation to current when new message arrives
+                           currentHistoryIndex = -1,
+                           isViewingHistory = false
+                       )
+                       
+                       // Add to chat history if we have a meaningful tutor message
+                       response.tutorMessage?.let { message ->
+                           if (message.isNotBlank() && newFlowState != TutorialFlowState.INTERPRETING) {
+                               val historyEntry = ChatHistoryEntry(
+                                   tutorMessage = message,
+                                   userMessage = state.textInput, // Store user input for context
+                                   subject = extractedSubject,
+                                   flowState = newFlowState,
+                                   numberLine = newNumberLine,
+                                   expression = newExpression,
+                                   dataTable = newDataTable,
+                                   tallyChart = newTallyChart,
+                                   barChart = newBarChart,
+                                   pieChart = newPieChart,
+                                   dotPlot = newDotPlot,
+                                   dataSummary = newDataSummary
+                               )
+                               newState.copy(
+                                   chatHistory = state.chatHistory + historyEntry
+                               )
+                           } else {
+                               newState
+                           }
+                       } ?: newState
+                   }
+                   
+                   _uiState.update { updatedState }
+                   Log.d(TAG, "State updated with new tutor message, subject: '$extractedSubject', animations, and alpaca speaking triggered. History size: ${updatedState.chatHistory.size}")
 
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse LLM response: $jsonString", e)
@@ -254,15 +407,8 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
             }
             TutorialFlowState.AWAITING_CONFIRMATION, TutorialFlowState.CHATTING -> {
                 Log.d(TAG, "onSendText in CHATTING state.")
-                val history = mutableListOf<String>()
-                history.add("Tutor found problem statement: ${currentState.initialProblemStatement}")
-                val lastTutorMessage = currentState.tutorMessage
-                if (lastTutorMessage != null) {
-                    val lastTurn = "Tutor: $lastTutorMessage\nUser: $currentText"
-                    history.add(lastTurn)
-                }
-
-                val socraticPrompt = systemPromptSocratic(history.joinToString("\n\n---\n\n"), subject = currentState.subject)
+                val fullConversationHistory = buildConversationHistory(currentState, currentText)
+                val socraticPrompt = systemPromptSocratic(fullConversationHistory, subject = currentState.subject)
                 Triple(socraticPrompt, TutorialFlowState.CHATTING, currentState.initialProblemStatement)
             }
             else -> {
@@ -332,7 +478,8 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
 
         // Kick off the Socratic dialogue
         viewModelScope.launch {
-            val socraticPrompt = systemPromptSocratic("Tutor found problem statement: $problemStatementFromTutor", subject = _uiState.value.subject) + "\n\nNow, begin the conversation with a guiding question."
+            val initialHistory = "PROBLEM IDENTIFIED: $problemStatementFromTutor\n\nNow begin the conversation with a guiding question to help the student understand this problem step by step."
+            val socraticPrompt = systemPromptSocratic(initialHistory, subject = _uiState.value.subject)
             val tokenCount = LlmHelper.sizeInTokens(socraticPrompt)
             Log.d(TAG, "LLM Prompt ($tokenCount tokens): $socraticPrompt")
             var fullResponse = ""
@@ -426,8 +573,170 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
             "matemáticas" // Default fallback
         }
     }
-
-
+    
+    /**
+     * Navigate to previous message in chat history
+     */
+    fun navigateToPreviousMessage() {
+        val currentState = _uiState.value
+        if (currentState.chatHistory.isNotEmpty()) {
+            val newIndex = if (currentState.isViewingHistory) {
+                maxOf(0, currentState.currentHistoryIndex - 1)
+            } else {
+                currentState.chatHistory.size - 1 // Start from most recent
+            }
+            
+            if (newIndex >= 0 && newIndex < currentState.chatHistory.size) {
+                val historyEntry = currentState.chatHistory[newIndex]
+                _uiState.update { 
+                    it.copy(
+                        currentHistoryIndex = newIndex,
+                        isViewingHistory = true,
+                        // Show historical content
+                        tutorMessage = historyEntry.tutorMessage,
+                        subject = historyEntry.subject,
+                        flowState = historyEntry.flowState, // Preserve historical flow state
+                        currentNumberLine = historyEntry.numberLine,
+                        currentExpression = historyEntry.expression,
+                        currentDataTable = historyEntry.dataTable,
+                        currentTallyChart = historyEntry.tallyChart,
+                        currentBarChart = historyEntry.barChart,
+                        currentPieChart = historyEntry.pieChart,
+                        currentDotPlot = historyEntry.dotPlot,
+                        currentDataSummary = historyEntry.dataSummary,
+                        isAlpacaSpeaking = true // Trigger alpaca speaking for historical message
+                    )
+                }
+                Log.d(TAG, "Navigated to previous message: index $newIndex")
+            }
+        }
+    }
+    
+    /**
+     * Navigate to next message in chat history
+     */
+    fun navigateToNextMessage() {
+        val currentState = _uiState.value
+        if (currentState.isViewingHistory && currentState.chatHistory.isNotEmpty()) {
+            val newIndex = currentState.currentHistoryIndex + 1
+            
+            if (newIndex < currentState.chatHistory.size) {
+                val historyEntry = currentState.chatHistory[newIndex]
+                _uiState.update { 
+                    it.copy(
+                        currentHistoryIndex = newIndex,
+                        // Show historical content
+                        tutorMessage = historyEntry.tutorMessage,
+                        subject = historyEntry.subject,
+                        flowState = historyEntry.flowState, // Preserve historical flow state
+                        currentNumberLine = historyEntry.numberLine,
+                        currentExpression = historyEntry.expression,
+                        currentDataTable = historyEntry.dataTable,
+                        currentTallyChart = historyEntry.tallyChart,
+                        currentBarChart = historyEntry.barChart,
+                        currentPieChart = historyEntry.pieChart,
+                        currentDotPlot = historyEntry.dotPlot,
+                        currentDataSummary = historyEntry.dataSummary,
+                        isAlpacaSpeaking = true // Trigger alpaca speaking for historical message
+                    )
+                }
+                Log.d(TAG, "Navigated to next message: index $newIndex")
+            } else {
+                // Return to current/live content
+                returnToCurrentMessage()
+            }
+        }
+    }
+    
+    /**
+     * Return to current/live message (exit history viewing)
+     */
+    fun returnToCurrentMessage() {
+        _uiState.update { state ->
+            // We need to restore the actual current state from the last real interaction
+            val lastHistoryEntry = state.chatHistory.lastOrNull()
+            state.copy(
+                currentHistoryIndex = -1,
+                isViewingHistory = false,
+                tutorMessage = lastHistoryEntry?.tutorMessage,
+                subject = lastHistoryEntry?.subject ?: state.subject,
+                flowState = lastHistoryEntry?.flowState ?: TutorialFlowState.CHATTING, // Restore flow state
+                currentNumberLine = lastHistoryEntry?.numberLine,
+                currentExpression = lastHistoryEntry?.expression,
+                isAlpacaSpeaking = true
+            )
+        }
+        Log.d(TAG, "Returned to current message")
+    }
+    
+    /**
+     * Check if we can navigate to previous message
+     */
+    fun canNavigatePrevious(): Boolean {
+        val currentState = _uiState.value
+        return currentState.chatHistory.isNotEmpty() && 
+               (!currentState.isViewingHistory || currentState.currentHistoryIndex > 0)
+    }
+    
+    /**
+     * Check if we can navigate to next message
+     */
+    fun canNavigateNext(): Boolean {
+        val currentState = _uiState.value
+        return currentState.isViewingHistory && 
+               currentState.currentHistoryIndex < currentState.chatHistory.size - 1
+    }
+    
+    /**
+     * Build compact conversation history for LLM context (optimized for small models)
+     */
+    private fun buildConversationHistory(currentState: TutorialState, currentUserInput: String): String {
+        val history = mutableListOf<String>()
+        
+        // Add problem statement (essential context)
+        history.add("Problem: ${currentState.initialProblemStatement}")
+        
+        // Only include last 3-4 exchanges to keep token count low
+        val recentHistory = currentState.chatHistory.takeLast(3)
+        
+        recentHistory.forEach { entry ->
+            // Compact format: S=Student, T=Tutor
+            if (entry.userMessage.isNotBlank()) {
+                history.add("S: ${entry.userMessage}")
+            }
+            
+            // Just the essential tutor message, no verbose descriptions
+            var tutorMsg = "T: ${entry.tutorMessage}"
+            
+            // Add minimal visual context
+            entry.numberLine?.let { 
+                tutorMsg += " [showed numbers]"
+            }
+            entry.expression?.let { 
+                tutorMsg += " [showed: ${it}]"
+            }
+            
+            // Add compact visual context for data
+            entry.dataTable?.let { tutorMsg += " [table]" }
+            entry.tallyChart?.let { tutorMsg += " [tally]" }
+            entry.barChart?.let { tutorMsg += " [bars]" }
+            entry.pieChart?.let { tutorMsg += " [pie chart]" }
+            entry.dotPlot?.let { tutorMsg += " [dots]" }
+            entry.dataSummary?.let { tutorMsg += " [summary]" }
+            
+            history.add(tutorMsg)
+        }
+        
+        // Add current input
+        if (currentUserInput.isNotBlank()) {
+            history.add("S: $currentUserInput")
+        }
+        
+        val compactHistory = history.joinToString(" | ")
+        Log.d(TAG, "Built compact history (${compactHistory.length} chars): $compactHistory")
+        
+        return compactHistory
+    }
 }
 
 class TutorialViewModelFactory(private val application: Application) : ViewModelProvider.Factory {

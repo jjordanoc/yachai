@@ -25,7 +25,19 @@ data class AnimationArgs(
     val expression: String? = null,
     val range: List<Int>? = null,
     val marks: List<Int>? = null,
-    val highlight: List<Int>? = null
+    val highlight: List<Int>? = null,
+    // Data visualization arguments
+    val headers: List<String>? = null,
+    val rows: List<List<String>>? = null,
+    val categories: List<String>? = null,
+    val counts: List<Int>? = null,
+    val labels: List<String>? = null,
+    val values: List<Int>? = null,
+    val min: Int? = null,
+    val max: Int? = null,
+    val index: Int? = null,
+    val summary: String? = null,
+    val value: Double? = null
 )
 
 @Serializable
