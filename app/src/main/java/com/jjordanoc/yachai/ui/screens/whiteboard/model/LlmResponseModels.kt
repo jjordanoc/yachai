@@ -37,7 +37,12 @@ data class AnimationArgs(
     val max: Int? = null,
     val index: Int? = null,
     val summary: String? = null,
-    val value: Double? = null
+    val value: Double? = null,
+    // Rectangle animation arguments
+    val length: Int? = null,
+    val width: Int? = null,
+    val lengthLabel: String? = null,
+    val widthLabel: String? = null
 )
 
 @Serializable

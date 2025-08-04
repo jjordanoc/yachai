@@ -1,4 +1,4 @@
-package com.jjordanoc.yachai.ui.screens
+package com.jjordanoc.yachai.ui.screens.whiteboard
 
 import android.app.Application
 import android.net.Uri
@@ -18,18 +18,13 @@ import com.jjordanoc.yachai.llm.data.getLocalPath
 import com.jjordanoc.yachai.utils.SettingsManager
 import com.jjordanoc.yachai.llm.data.ModelConfig
 import com.jjordanoc.yachai.llm.LlmHelper
-import com.jjordanoc.yachai.ui.screens.whiteboard.model.InterpretResponse
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.LlmResponse
-import com.jjordanoc.yachai.ui.screens.whiteboard.model.AnimationCommand
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardItem
-import com.jjordanoc.yachai.ui.screens.whiteboard.systemPromptInterpret
-import com.jjordanoc.yachai.ui.screens.whiteboard.systemPromptSocratic
+import com.jjordanoc.yachai.ui.screens.whiteboard.model.RectanglePhase
 import androidx.lifecycle.ViewModelProvider
 
 enum class TutorialFlowState {
     INITIAL,
-    INTERPRETING,
-    AWAITING_CONFIRMATION,
     CHATTING
 }
 
@@ -40,6 +35,7 @@ data class ChatHistoryEntry(
     val flowState: TutorialFlowState,
     val numberLine: WhiteboardItem.AnimatedNumberLine? = null,
     val expression: String? = null,
+    val rectangle: WhiteboardItem.AnimatedRectangle? = null,
     // Data visualization history
     val dataTable: WhiteboardItem.DataTable? = null,
     val tallyChart: WhiteboardItem.TallyChart? = null,
@@ -57,11 +53,13 @@ data class TutorialState(
     val subject: String = "",
     val flowState: TutorialFlowState = TutorialFlowState.INITIAL,
     val isModelLoading: Boolean = true,
+    val isProcessing: Boolean = false,
     val showConfirmationFailureMessage: Boolean = false,
     val initialProblemStatement: String = "",
     val isAlpacaSpeaking: Boolean = false,
     val currentNumberLine: WhiteboardItem.AnimatedNumberLine? = null,
     val currentExpression: String? = null,
+    val currentRectangle: WhiteboardItem.AnimatedRectangle? = null,
     val animationTrigger: Long = 0L, // Used to trigger animation recomposition
     // Data visualization state
     val currentDataTable: WhiteboardItem.DataTable? = null,
@@ -144,7 +142,8 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
             _uiState.update { 
                 it.copy(
                     tutorMessage = jsonString,
-                    isAlpacaSpeaking = true
+                    isAlpacaSpeaking = true, // Show error message with speaking animation
+                    isProcessing = false // Set processing to false on error
                 )
             }
             return
@@ -162,28 +161,16 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
 
             val currentState = _uiState.value
 
-            // Adapt parsing based flow state
-            val response: LlmResponse = if (currentState.flowState == TutorialFlowState.INTERPRETING) {
-                val interpretResponse = json.decodeFromString<InterpretResponse>(cleanJsonString)
-                LlmResponse(
-                    tutorMessage = interpretResponse.tutorMessage,
-                    hint = null,
-                    animation = emptyList() // No animations during interpretation
-                )
-            } else {
-                json.decodeFromString<LlmResponse>(cleanJsonString)
-            }
+            // Parse as standard LLM response since we no longer have interpretation phase
+            val response: LlmResponse = json.decodeFromString<LlmResponse>(cleanJsonString)
 
             Log.d(TAG, "LLM response parsed successfully: $response")
 
-            val newFlowState = if (currentState.flowState == TutorialFlowState.INTERPRETING) {
-                TutorialFlowState.AWAITING_CONFIRMATION
-            } else {
-                currentState.flowState
-            }
+            // Keep current flow state (either INITIAL or CHATTING)
+            val newFlowState = currentState.flowState
 
-            // Extract subject from interpretation response if this is the interpreting phase
-            val extractedSubject = if (currentState.flowState == TutorialFlowState.INTERPRETING) {
+            // Extract subject from the first response if we don't have one yet
+            val extractedSubject = if (currentState.subject.isBlank()) {
                 extractSubjectFromResponse(response.tutorMessage ?: "")
             } else {
                 currentState.subject
@@ -192,6 +179,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
             // Process animations for all primitives
             var newNumberLine = currentState.currentNumberLine
             var newExpression = currentState.currentExpression
+            var newRectangle = currentState.currentRectangle
             var newDataTable = currentState.currentDataTable
             var newTallyChart = currentState.currentTallyChart
             var newBarChart = currentState.currentBarChart
@@ -233,6 +221,61 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                         command.args.expression?.let { expression ->
                             Log.d(TAG, "appendExpression command found with expression: $expression")
                             newExpression = expression
+                        }
+                    }
+                    "drawRectangle" -> {
+                        Log.d(TAG, "drawRectangle command found with args: ${command.args}")
+                        val length = command.args.length
+                        val width = command.args.width
+                        val lengthLabel = command.args.lengthLabel ?: "longitud"
+                        val widthLabel = command.args.widthLabel ?: "ancho"
+                        
+                        if (length != null && width != null && length > 0 && width > 0) {
+                            newRectangle = WhiteboardItem.AnimatedRectangle(
+                                length = length,
+                                width = width,
+                                lengthLabel = lengthLabel,
+                                widthLabel = widthLabel,
+                                animationPhase = RectanglePhase.SETUP
+                            )
+                            Log.d(TAG, "Created rectangle: length=$length, width=$width")
+                        } else {
+                            Log.w(TAG, "Invalid arguments for drawRectangle: ${command.args}")
+                        }
+                    }
+                    "updateRectangle" -> {
+                        Log.d(TAG, "updateRectangle command found")
+                        if (newRectangle != null) {
+                            // Progress the animation phase
+                            val nextPhase = when (newRectangle.animationPhase) {
+                                RectanglePhase.SETUP -> RectanglePhase.VERTICAL_LINES
+                                RectanglePhase.VERTICAL_LINES -> RectanglePhase.FILLING_ROWS
+                                RectanglePhase.FILLING_ROWS -> {
+                                    // Advance filling by one unit square
+                                    val nextRow = if (newRectangle.currentColumn >= newRectangle.length - 1) {
+                                        newRectangle.currentRow + 1
+                                    } else {
+                                        newRectangle.currentRow
+                                    }
+                                    val nextColumn = if (newRectangle.currentColumn >= newRectangle.length - 1) {
+                                        0
+                                    } else {
+                                        newRectangle.currentColumn + 1
+                                    }
+                                    
+                                    newRectangle = newRectangle.copy(
+                                        currentRow = nextRow,
+                                        currentColumn = nextColumn
+                                    )
+                                    RectanglePhase.FILLING_ROWS
+                                }
+                            }
+                            
+                            if (newRectangle.animationPhase != RectanglePhase.FILLING_ROWS) {
+                                newRectangle = newRectangle.copy(animationPhase = nextPhase)
+                            }
+                            
+                            Log.d(TAG, "Updated rectangle phase: $nextPhase, row: ${newRectangle.currentRow}, col: ${newRectangle.currentColumn}")
                         }
                     }
                     
@@ -330,8 +373,10 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                            subject = extractedSubject,
                            flowState = newFlowState,
                            isAlpacaSpeaking = true,
+                           isProcessing = false, // Set processing to false when response is received
                            currentNumberLine = newNumberLine,
                            currentExpression = newExpression,
+                           currentRectangle = newRectangle,
                            currentDataTable = newDataTable,
                            currentTallyChart = newTallyChart,
                            currentBarChart = newBarChart,
@@ -346,7 +391,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                        
                        // Add to chat history if we have a meaningful tutor message
                        response.tutorMessage?.let { message ->
-                           if (message.isNotBlank() && newFlowState != TutorialFlowState.INTERPRETING) {
+                           if (message.isNotBlank()) {
                                val historyEntry = ChatHistoryEntry(
                                    tutorMessage = message,
                                    userMessage = state.textInput, // Store user input for context
@@ -354,6 +399,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                                    flowState = newFlowState,
                                    numberLine = newNumberLine,
                                    expression = newExpression,
+                                   rectangle = newRectangle,
                                    dataTable = newDataTable,
                                    tallyChart = newTallyChart,
                                    barChart = newBarChart,
@@ -375,6 +421,12 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
 
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse LLM response: $jsonString", e)
+            _uiState.update { 
+                it.copy(
+                    isProcessing = false, // Set processing to false on parsing error
+                    isAlpacaSpeaking = false // Stop alpaca animation on error
+                )
+            }
         }
     }
 
@@ -402,28 +454,26 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
 
         val (systemPrompt, newFlowState, newProblemStatement) = when (currentState.flowState) {
             TutorialFlowState.INITIAL -> {
-                Log.d(TAG, "onSendText in INITIAL state. Transitioning to INTERPRETING.")
-                Triple(systemPromptInterpret, TutorialFlowState.INTERPRETING, currentText)
+                Log.d(TAG, "onSendText in INITIAL state. Transitioning directly to CHATTING.")
+                // Use the user's input as the problem statement and start Socratic dialogue immediately
+                val socraticPrompt = systemPromptSocratic("") // Default subject initially
+                Triple(socraticPrompt, TutorialFlowState.CHATTING, currentText)
             }
-            TutorialFlowState.AWAITING_CONFIRMATION, TutorialFlowState.CHATTING -> {
+            TutorialFlowState.CHATTING -> {
                 Log.d(TAG, "onSendText in CHATTING state.")
                 val fullConversationHistory = buildConversationHistory(currentState, currentText)
-                val socraticPrompt = systemPromptSocratic(fullConversationHistory, subject = currentState.subject)
+                val socraticPrompt = systemPromptSocratic(fullConversationHistory)
                 Triple(socraticPrompt, TutorialFlowState.CHATTING, currentState.initialProblemStatement)
             }
-            else -> {
-                Log.w(TAG, "onSendText called in unexpected state: ${currentState.flowState}")
-                return
-            }
         }
-
-        val isInterpreting = newFlowState == TutorialFlowState.INTERPRETING
 
         _uiState.update { it.copy(
             textInput = "",
             flowState = newFlowState,
             initialProblemStatement = newProblemStatement,
-            tutorMessage = if (isInterpreting) "Estoy leyendo el problema..." else null,
+            tutorMessage = null, // No loading message needed since we go straight to chatting
+            isProcessing = true, // Set processing to true when starting to process
+            isAlpacaSpeaking = true, // Start alpaca animation to show thinking
             showConfirmationFailureMessage = false,
             selectedImageUri = null // Clear image after sending
         ).also {
@@ -463,58 +513,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun onConfirmationAccept() {
-        Log.d(TAG, "Confirmation accepted by user.")
-        val problemStatementFromTutor = _uiState.value.tutorMessage ?: _uiState.value.initialProblemStatement
-        _uiState.update {
-            it.copy(
-                flowState = TutorialFlowState.CHATTING,
-                tutorMessage = null, // Clear interpretation message
-                initialProblemStatement = problemStatementFromTutor
-            ).also {
-                Log.d(TAG, "State updated for confirmation accept. New flow state: ${it.flowState}")
-            }
-        }
 
-        // Kick off the Socratic dialogue
-        viewModelScope.launch {
-            val initialHistory = "PROBLEM IDENTIFIED: $problemStatementFromTutor\n\nNow begin the conversation with a guiding question to help the student understand this problem step by step."
-            val socraticPrompt = systemPromptSocratic(initialHistory, subject = _uiState.value.subject)
-            val tokenCount = LlmHelper.sizeInTokens(socraticPrompt)
-            Log.d(TAG, "LLM Prompt ($tokenCount tokens): $socraticPrompt")
-            var fullResponse = ""
-            LlmHelper.runInference(
-                input = socraticPrompt,
-                resultListener = { partialResult, done ->
-                    fullResponse += partialResult
-                    if (done) {
-                        Log.d(TAG, "Socratic LLM inference finished. Full response received.")
-                        CoroutineScope(Dispatchers.Main).launch {
-                            processLlmResponse(fullResponse)
-                        }
-                    }
-                }
-            )
-        }
-    }
-
-    fun onConfirmationReject() {
-        Log.d(TAG, "Confirmation rejected by user. Resetting state.")
-        _uiState.update {
-            it.copy(
-                flowState = TutorialFlowState.INITIAL,
-                tutorMessage = null,
-                subject = "",
-                initialProblemStatement = "",
-                showConfirmationFailureMessage = true,
-                currentNumberLine = null,
-                currentExpression = null,
-                animationTrigger = 0L
-            ).also {
-                Log.d(TAG, "State reset after rejection.")
-            }
-        }
-    }
     
     /**
      * Extracts the subject/topic from the LLM interpretation response
@@ -598,6 +597,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                         flowState = historyEntry.flowState, // Preserve historical flow state
                         currentNumberLine = historyEntry.numberLine,
                         currentExpression = historyEntry.expression,
+                        currentRectangle = historyEntry.rectangle,
                         currentDataTable = historyEntry.dataTable,
                         currentTallyChart = historyEntry.tallyChart,
                         currentBarChart = historyEntry.barChart,
@@ -631,6 +631,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                         flowState = historyEntry.flowState, // Preserve historical flow state
                         currentNumberLine = historyEntry.numberLine,
                         currentExpression = historyEntry.expression,
+                        currentRectangle = historyEntry.rectangle,
                         currentDataTable = historyEntry.dataTable,
                         currentTallyChart = historyEntry.tallyChart,
                         currentBarChart = historyEntry.barChart,

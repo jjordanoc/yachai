@@ -46,31 +46,6 @@ fun MainScreen(navController: NavController) {
             modifier = Modifier.fillMaxWidth()
         ) { Text(text = "Tutorial Horizontal") }
         Spacer(modifier = Modifier.height(32.dp))
-        Button(
-                onClick = { navController.navigate(Routes.CAMERA_SCREEN) },
-                modifier = Modifier.fillMaxWidth()
-        ) { Text(text = stringResource(R.string.tomar_foto_del_problema)) }
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-                onClick = { navController.navigate(Routes.PRACTICE_SCREEN) },
-                modifier = Modifier.fillMaxWidth()
-        ) { Text(text = stringResource(R.string.practicar)) }
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-                onClick = {
-                    val route = "${Routes.WHITEBOARD_SCREEN}?useGpu=$useGpu"
-                    navController.navigate(route)
-                },
-                modifier = Modifier.fillMaxWidth()
-        ) { Text(text = "Pizarra Interactiva") }
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-                onClick = { navController.navigate(Routes.CHAT_SCREEN) },
-                modifier = Modifier.fillMaxWidth()
-        ) { Text(text = "Chat de Pruebas") }
-        Spacer(modifier = Modifier.height(16.dp))
-
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,

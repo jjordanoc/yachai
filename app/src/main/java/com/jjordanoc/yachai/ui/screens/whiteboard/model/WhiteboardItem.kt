@@ -2,6 +2,12 @@ package com.jjordanoc.yachai.ui.screens.whiteboard.model
 
 import androidx.compose.ui.geometry.Offset
 
+enum class RectanglePhase {
+    SETUP,           // Show empty rectangle outline
+    VERTICAL_LINES,  // Show vertical grid lines first
+    FILLING_ROWS     // Fill unit squares row by row
+}
+
 sealed class WhiteboardItem {
     data class AnimatedTriangle(
         val a: Offset,
@@ -16,6 +22,17 @@ sealed class WhiteboardItem {
         val range: List<Int>,
         val marks: List<Int>,
         val highlight: List<Int>
+    ) : WhiteboardItem()
+
+    data class AnimatedRectangle(
+        val length: Int,          // horizontal dimension
+        val width: Int,           // vertical dimension  
+        val currentColumn: Int = 0,    // Current column being filled (0 to length-1)
+        val currentRow: Int = 0,       // Current row being filled (0 to width-1)
+        val animationPhase: RectanglePhase = RectanglePhase.SETUP,
+        val showDimensions: Boolean = true,
+        val lengthLabel: String = "longitud",
+        val widthLabel: String = "ancho"
     ) : WhiteboardItem()
 
     data class Expression(val text: String) : WhiteboardItem()

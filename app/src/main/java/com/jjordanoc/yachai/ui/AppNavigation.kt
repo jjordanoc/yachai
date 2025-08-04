@@ -5,7 +5,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.jjordanoc.yachai.ui.screens.*
-import com.jjordanoc.yachai.ui.screens.whiteboard.WhiteboardScreen
+import com.jjordanoc.yachai.ui.screens.whiteboard.HorizontalTutorialScreen
 
 object Routes {
     const val SPLASH_SCREEN = "splash"
@@ -32,15 +32,7 @@ fun AppNavigation() {
         composable(Routes.MAIN_SCREEN) {
             MainScreen(navController = navController)
         }
-        composable(Routes.CAMERA_SCREEN) {
-            CameraScreen(navController = navController)
-        }
-        composable(Routes.WHITEBOARD_SCREEN) {
-            WhiteboardScreen()
-        }
-        composable(Routes.CHAT_SCREEN) {
-            ChatScreen()
-        }
+
         composable(Routes.HORIZONTAL_TUTORIAL_SCREEN) {
             HorizontalTutorialScreen(navController = navController)
         }

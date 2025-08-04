@@ -1,4 +1,4 @@
-package com.jjordanoc.yachai.ui.screens
+package com.jjordanoc.yachai.ui.screens.whiteboard
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
@@ -9,7 +9,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
@@ -19,7 +18,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -73,6 +71,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import android.graphics.Paint
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardItem
+import com.jjordanoc.yachai.ui.screens.whiteboard.model.RectanglePhase
 
 @Composable
 fun HorizontalTutorialScreen(
@@ -355,13 +354,8 @@ fun HorizontalTutorialScreen(
                 // Small delay to let UI update, then start TTS
                 delay(500)
                 
-                // Prepare the speech text based on the current flow state
-                val speechText = when (uiState.flowState) {
-                    TutorialFlowState.INTERPRETING -> {
-                        "¿Es este el problema que quieres resolver? $tutorMessageText"
-                    }
-                    else -> tutorMessageText
-                }
+                // Use the tutor message directly for speech
+                val speechText = tutorMessageText
                 
                 Log.d(TAG, "Triggering TTS speech for: '$speechText'")
                 
@@ -464,16 +458,7 @@ fun HorizontalTutorialScreen(
                             // Show initial lesson content when in INITIAL state
                             if (uiState.flowState == TutorialFlowState.INITIAL) {
                                 Text(
-                                    text = "Un número es divisible por 5 si termina en 0 o 5.",
-                                    color = White,
-                                    fontSize = 20.sp,
-                                    fontFamily = FontFamily.Cursive,
-                                    textAlign = TextAlign.Left,
-                                    lineHeight = 28.sp
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Text(
-                                    text = "Un número es divisible por 25 si termina en 00, 25, 50 o 75.",
+                                    text = "¡Hola! Soy tu tutor de matemáticas. Comparte conmigo cualquier problema que tengas y te ayudaré a resolverlo paso a paso.",
                                     color = White,
                                     fontSize = 20.sp,
                                     fontFamily = FontFamily.Cursive,
@@ -482,13 +467,13 @@ fun HorizontalTutorialScreen(
                                 )
                             }
                             
-                            // Show tutor message in INTERPRETING and AWAITING_CONFIRMATION states
-                            if (uiState.flowState == TutorialFlowState.INTERPRETING || 
-                                uiState.flowState == TutorialFlowState.AWAITING_CONFIRMATION) {
-                                uiState.tutorMessage?.let { message ->
+                            // Show tutor message and visual content when CHATTING
+                            if (uiState.flowState == TutorialFlowState.CHATTING) {
+                                // Show processing message when thinking
+                                if (uiState.isProcessing) {
                                     Text(
-                                        text = message,
-                                        color = White,
+                                        text = "Resolviendo mentalmente...",
+                                        color = White.copy(alpha = 0.8f),
                                         fontSize = 18.sp,
                                         fontFamily = FontFamily.Cursive,
                                         textAlign = TextAlign.Left,
@@ -496,6 +481,20 @@ fun HorizontalTutorialScreen(
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                     Spacer(modifier = Modifier.height(16.dp))
+                                } else {
+                                    // Show the actual tutor message when not processing
+                                    uiState.tutorMessage?.let { message ->
+                                        Text(
+                                            text = message,
+                                            color = White,
+                                            fontSize = 18.sp,
+                                            fontFamily = FontFamily.Cursive,
+                                            textAlign = TextAlign.Left,
+                                            lineHeight = 24.sp,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                    }
                                 }
                             }
                             
@@ -526,6 +525,21 @@ fun HorizontalTutorialScreen(
                                         textAlign = TextAlign.Left,
                                         modifier = Modifier.fillMaxWidth()
                                     )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
+                                
+                                // Display rectangle area animation if present
+                                uiState.currentRectangle?.let { rectangle ->
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(200.dp)
+                                    ) {
+                                        AnimatedRectangleComponent(
+                                            rectangle = rectangle,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
                                     Spacer(modifier = Modifier.height(16.dp))
                                 }
                                 
@@ -643,50 +657,13 @@ fun HorizontalTutorialScreen(
                 )
             }
             
-            // Confirmation buttons overlay (shown during AWAITING_CONFIRMATION state)
-            if (uiState.flowState == TutorialFlowState.AWAITING_CONFIRMATION) {
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Reject button (X)
-                    FloatingActionButton(
-                        onClick = { viewModel.onConfirmationReject() },
-                        modifier = Modifier.size(48.dp),
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Reject",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    
-                    // Accept button (✓)
-                    FloatingActionButton(
-                        onClick = { viewModel.onConfirmationAccept() },
-                        modifier = Modifier.size(48.dp),
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Accept",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-            }
+
         }
         
         Spacer(modifier = Modifier.height(15.dp))
         
-        // Chat interface - only show during appropriate states
-        if (uiState.flowState != TutorialFlowState.AWAITING_CONFIRMATION) {
-            Column(modifier = Modifier.padding(10.dp)) {
+        // Chat interface - always show (INITIAL and CHATTING states)
+        Column(modifier = Modifier.padding(10.dp)) {
                 // Show selected image if any
                 uiState.selectedImageUri?.let { uri ->
                     Box(modifier = Modifier.padding(bottom = 8.dp)) {
@@ -741,14 +718,11 @@ fun HorizontalTutorialScreen(
                             Text(
                                 text = when (uiState.flowState) {
                                     TutorialFlowState.INITIAL -> "Describe tu problema de matemáticas..."
-                                    TutorialFlowState.INTERPRETING -> "Analizando..."
                                     TutorialFlowState.CHATTING -> "Escribe tu respuesta..."
-                                    else -> "Escribe aquí..."
                                 },
                                 color = Color.Gray
                             )
-                        },
-                        enabled = uiState.flowState != TutorialFlowState.INTERPRETING
+                        }
                     )
                     
                     // Image selection button
@@ -830,7 +804,6 @@ fun HorizontalTutorialScreen(
             }
         }
     }
-}
 
 @Composable
 private fun LoadingScreen() {
@@ -1518,6 +1491,191 @@ private fun DrawScope.drawDotPlot(
                     color = dotColor,
                     radius = dotRadius,
                     center = androidx.compose.ui.geometry.Offset(x, y)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AnimatedRectangleComponent(
+    rectangle: WhiteboardItem.AnimatedRectangle,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        drawAnimatedRectangle(
+            rectangle = rectangle,
+            canvasSize = size
+        )
+    }
+}
+
+private fun DrawScope.drawAnimatedRectangle(
+    rectangle: WhiteboardItem.AnimatedRectangle,
+    canvasSize: androidx.compose.ui.geometry.Size
+) {
+    // Chalk colors for authentic chalkboard look
+    val chalkWhite = Color(0xFFF5F5DC) // Slightly off-white like real chalk
+    val chalkBlue = Color(0xFF87CEEB)  // Light blue for filled squares
+    val chalkRed = Color(0xFFDC143C)   // Red for dimensions
+    val chalkYellow = Color(0xFFFFE4B5) // Light yellow for highlights
+    
+    // Calculate the available space for the rectangle
+    val padding = 40.dp.toPx()
+    val availableWidth = canvasSize.width - (2 * padding)
+    val availableHeight = canvasSize.height - (2 * padding) - 60.dp.toPx() // Space for labels
+    
+    // Calculate unit square size based on rectangle dimensions
+    val unitSize = minOf(
+        availableWidth / rectangle.length,
+        availableHeight / rectangle.width
+    )
+    
+    // Calculate actual rectangle size
+    val rectWidth = unitSize * rectangle.length
+    val rectHeight = unitSize * rectangle.width
+    
+    // Center the rectangle
+    val startX = (canvasSize.width - rectWidth) / 2f
+    val startY = (canvasSize.height - rectHeight) / 2f + 30.dp.toPx() // Leave space for top labels
+    
+    val textPaint = Paint().apply {
+        color = chalkWhite.toArgb()
+        textSize = 14.dp.toPx()
+        textAlign = Paint.Align.CENTER
+    }
+    
+    val dimensionPaint = Paint().apply {
+        color = chalkRed.toArgb()
+        textSize = 16.dp.toPx()
+        textAlign = Paint.Align.CENTER
+        isFakeBoldText = true
+    }
+    
+    // Phase 1: Draw rectangle outline
+    if (rectangle.animationPhase != RectanglePhase.SETUP) {
+        // Draw the outer rectangle outline
+        drawRect(
+            color = chalkWhite,
+            topLeft = androidx.compose.ui.geometry.Offset(startX, startY),
+            size = androidx.compose.ui.geometry.Size(rectWidth, rectHeight),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+        )
+    }
+    
+    // Phase 2: Draw vertical grid lines
+    if (rectangle.animationPhase == RectanglePhase.VERTICAL_LINES || rectangle.animationPhase == RectanglePhase.FILLING_ROWS) {
+        // Draw vertical lines to show columns
+        for (i in 1 until rectangle.length) {
+            val x = startX + (i * unitSize)
+            drawLine(
+                color = chalkWhite,
+                start = androidx.compose.ui.geometry.Offset(x, startY),
+                end = androidx.compose.ui.geometry.Offset(x, startY + rectHeight),
+                strokeWidth = 1.dp.toPx()
+            )
+        }
+        
+        // Draw horizontal lines to show rows
+        for (i in 1 until rectangle.width) {
+            val y = startY + (i * unitSize)
+            drawLine(
+                color = chalkWhite,
+                start = androidx.compose.ui.geometry.Offset(startX, y),
+                end = androidx.compose.ui.geometry.Offset(startX + rectWidth, y),
+                strokeWidth = 1.dp.toPx()
+            )
+        }
+    }
+    
+    // Phase 3: Fill unit squares progressively
+    if (rectangle.animationPhase == RectanglePhase.FILLING_ROWS) {
+        for (row in 0 until rectangle.width) {
+            for (col in 0 until rectangle.length) {
+                // Only fill squares up to the current progress
+                val shouldFill = row < rectangle.currentRow || 
+                               (row == rectangle.currentRow && col <= rectangle.currentColumn)
+                
+                if (shouldFill) {
+                    val squareX = startX + (col * unitSize)
+                    val squareY = startY + (row * unitSize)
+                    
+                    // Fill the unit square
+                    drawRect(
+                        color = chalkBlue.copy(alpha = 0.6f),
+                        topLeft = androidx.compose.ui.geometry.Offset(squareX + 1.dp.toPx(), squareY + 1.dp.toPx()),
+                        size = androidx.compose.ui.geometry.Size(unitSize - 2.dp.toPx(), unitSize - 2.dp.toPx())
+                    )
+                    
+                    // Add a small dot in the center to emphasize it's a unit
+                    drawCircle(
+                        color = chalkYellow,
+                        radius = 2.dp.toPx(),
+                        center = androidx.compose.ui.geometry.Offset(
+                            squareX + unitSize/2,
+                            squareY + unitSize/2
+                        )
+                    )
+                }
+            }
+        }
+    }
+    
+    // Draw dimension labels if enabled
+    if (rectangle.showDimensions) {
+        // Length label (bottom)
+        drawIntoCanvas { canvas ->
+            canvas.nativeCanvas.drawText(
+                "${rectangle.lengthLabel}: ${rectangle.length}",
+                startX + rectWidth/2,
+                startY + rectHeight + 30.dp.toPx(),
+                dimensionPaint
+            )
+        }
+        
+        // Width label (left side, rotated)
+        drawIntoCanvas { canvas ->
+            canvas.nativeCanvas.save()
+            canvas.nativeCanvas.translate(startX - 25.dp.toPx(), startY + rectHeight/2)
+            canvas.nativeCanvas.rotate(-90f)
+            canvas.nativeCanvas.drawText(
+                "${rectangle.widthLabel}: ${rectangle.width}",
+                0f,
+                0f,
+                dimensionPaint
+            )
+            canvas.nativeCanvas.restore()
+        }
+        
+        // Show multiplication expression and current count
+        val totalSquares = rectangle.length * rectangle.width
+        val currentCount = if (rectangle.animationPhase == RectanglePhase.FILLING_ROWS) {
+            rectangle.currentRow * rectangle.length + rectangle.currentColumn + 1
+        } else {
+            0
+        }
+        
+        val expressionText = "${rectangle.length} × ${rectangle.width} = $totalSquares"
+        val progressText = if (rectangle.animationPhase == RectanglePhase.FILLING_ROWS) {
+            "Cuadrados llenados: $currentCount de $totalSquares"
+        } else {
+            "Área = $expressionText unidades cuadradas"
+        }
+        
+        drawIntoCanvas { canvas ->
+            canvas.nativeCanvas.drawText(
+                expressionText,
+                canvasSize.width / 2f,
+                startY - 20.dp.toPx(),
+                dimensionPaint
+            )
+            
+            if (rectangle.animationPhase == RectanglePhase.FILLING_ROWS) {
+                canvas.nativeCanvas.drawText(
+                    progressText,
+                    canvasSize.width / 2f,
+                    startY - 5.dp.toPx(),
+                    textPaint
                 )
             }
         }
