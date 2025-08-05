@@ -20,7 +20,6 @@ fun SplashScreen(navController: NavController) {
     val model = Models.GEMMA_3N_E2B_VISION
 
     LaunchedEffect(Unit) {
-        delay(1000) // Simulate a loading time
         val destination = if (model.isDownloaded(context)) {
             Routes.MODEL_LOADING_SCREEN // Go directly to model loading if downloaded
         } else {
@@ -37,4 +36,4 @@ fun SplashScreen(navController: NavController) {
     ) {
         CircularProgressIndicator()
     }
-} 
+}

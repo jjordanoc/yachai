@@ -12,14 +12,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -37,12 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import coil.compose.rememberAsyncImagePainter
 import com.canhub.cropper.CropImageContract
 import com.canhub.cropper.CropImageContractOptions
 import com.canhub.cropper.CropImageOptions
 import com.jjordanoc.yachai.R
-import com.jjordanoc.yachai.ui.Routes
 import com.jjordanoc.yachai.ui.theme.TutorialTeal
 import com.jjordanoc.yachai.ui.theme.White
 import com.jjordanoc.yachai.utils.TAG
@@ -240,38 +236,30 @@ fun ProblemInputScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(White)
-            .padding(30.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // Alpaca image at the top
-        Box(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
             modifier = Modifier
-                .size(width = 240.dp, height = 160.dp),
-            contentAlignment = Alignment.Center
+                .fillMaxSize()
+                .background(White)
+                .padding(30.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.alpakey),
-                contentDescription = "Alpaca tutor",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit
-            )
-        }
-        
-        Spacer(modifier = Modifier.height(15.dp))
-        
-        // Top bar with settings gear
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 15.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+            // Alpaca image
+            Box(
+                modifier = Modifier
+                    .size(width = 240.dp, height = 160.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.alpakey),
+                    contentDescription = "Alpaca tutor",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            }
+
+            Spacer(modifier = Modifier.height(15.dp))
+
             // Greeting message
             Text(
                 text = "¡Hola! ¿Qué problema quieres resolver hoy?",
@@ -280,74 +268,65 @@ fun ProblemInputScreen(
                 color = Color.Black,
                 textAlign = TextAlign.Center,
                 lineHeight = 24.sp,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.fillMaxWidth()
             )
-            
-            // Settings gear for GPU toggle
-            IconButton(
-                onClick = { 
-                    // TODO: Open settings dialog for GPU toggle
-                },
-                modifier = Modifier.size(48.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings",
-                    tint = Color.Gray,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        }
-        
 
-        Spacer(modifier = Modifier.height(15.dp))
-        
-        // Input area with buttons - horizontal layout
-        Row() {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFFEEEEEE), shape = RoundedCornerShape(20.dp))
-                    .padding(horizontal = 10.dp),
+            Spacer(modifier = Modifier.height(15.dp))
+
+            // Input area with buttons - horizontal layout
+            Row(modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.Transparent)
+                .padding(vertical = 5.dp),
                 horizontalArrangement = Arrangement.spacedBy(15.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Text input field (takes most space)
-                TextField(
-                    value = uiState.textInput,
-                    onValueChange = { viewModel.onTextInputChanged(it) },
-                    label = { Text("Escribe tu problema de matemáticas") },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor   = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor  = Color.Transparent,
-                        focusedIndicatorColor   = Color.Transparent,   // remove underline/border
-                        unfocusedIndicatorColor = Color.Transparent,
-                        disabledIndicatorColor  = Color.Transparent
-                    ),
+                verticalAlignment = Alignment.CenterVertically) {
+                // Input area with gray background
+                Row(
                     modifier = Modifier
                         .weight(1f)
-                        .height(120.dp),
-                    minLines = 3,
-                    maxLines = 5,
-                    enabled = !uiState.isProcessing
-                )
-
-                // Right side buttons column
-                Row(
+                        .background(Color(0xFFEEEEEE), shape = RoundedCornerShape(20.dp))
+                        .padding(horizontal = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(15.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Image upload button with badge
-                    Box {
+                    // Text input field (takes most space)
+                    TextField(
+                        value = uiState.textInput,
+                        onValueChange = { viewModel.onTextInputChanged(it) },
+                        label = { Text("Escribe tu problema de matemáticas") },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent
+                        ),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(120.dp),
+                        minLines = 3,
+                        maxLines = 5,
+                        enabled = !uiState.isProcessing
+                    )
+
+                    // Input action buttons
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Microphone button
                         IconButton(
                             onClick = {
                                 when (android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                                    androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) -> {
-                                        launchImageCropper()
+                                    androidx.core.content.ContextCompat.checkSelfPermission(
+                                        context,
+                                        android.Manifest.permission.RECORD_AUDIO
+                                    ) -> {
+                                        startSpeechRecognition()
                                     }
                                     else -> {
-                                        cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                                        micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
                                     }
                                 }
                             },
@@ -357,92 +336,102 @@ fun ProblemInputScreen(
                                 .background(Color(0xFF333333))
                         ) {
                             Icon(
-                                imageVector = Icons.Default.AddPhotoAlternate,
-                                contentDescription = "Upload image",
-                                tint = White,
-                                modifier = Modifier.size(24.dp)
+                                imageVector = Icons.Default.Mic,
+                                contentDescription = "Voice input",
+                                tint = if (isListening) MaterialTheme.colorScheme.primary else Color.White
                             )
                         }
 
-                        // Badge showing image count
-                        if (uiState.selectedImageUri != null) {
-                            Box(
+                        // Image upload button with badge
+                        Box {
+                            IconButton(
+                                onClick = {
+                                    when (android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                        androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) -> {
+                                            launchImageCropper()
+                                        }
+                                        else -> {
+                                            cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                                        }
+                                    }
+                                },
                                 modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .size(20.dp)
+                                    .size(50.dp)
                                     .clip(CircleShape)
-                                    .background(TutorialTeal)
+                                    .background(Color(0xFF333333))
                             ) {
-                                Text(
-                                    text = "1",
-                                    color = White,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.align(Alignment.Center)
+                                Icon(
+                                    imageVector = Icons.Default.AddPhotoAlternate,
+                                    contentDescription = "Upload image",
+                                    tint = Color.White
                                 )
+                            }
+
+                            // Badge showing image count
+                            if (uiState.selectedImageUri != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .offset(x = 12.dp, y = (-6).dp)
+                                        .size(20.dp)
+                                        .clip(CircleShape)
+                                        .background(TutorialTeal)
+                                ) {
+                                    Text(
+                                        text = "1",
+                                        color = White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.align(Alignment.Center)
+                                    )
+                                }
                             }
                         }
                     }
-
-                    // Microphone button
-                    IconButton(
-                        onClick = {
-                            when (android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                                androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) -> {
-                                    startSpeechRecognition()
-                                }
-                                else -> {
-                                    micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
-                                }
-                            }
-                        },
-                        modifier = Modifier
-                            .size(50.dp)
-                            .clip(CircleShape)
-                            .background(if (isListening) TutorialTeal else Color(0xFF333333))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Mic,
-                            contentDescription = "Voice input",
-                            tint = White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-
                 }
-            // Send button
-            IconButton(
-                onClick = {
-                    if (uiState.textInput.isNotBlank() || uiState.selectedImageUri != null) {
+
+                // Send button (outside the gray background)
+                IconButton(
+                    onClick = {
                         viewModel.onSendText()
-                        // Navigate to tutorial screen after sending
-                        navController.navigate(Routes.HORIZONTAL_TUTORIAL_SCREEN)
-                    }
-                },
-                enabled = !uiState.isProcessing && (uiState.textInput.isNotBlank() || uiState.selectedImageUri != null),
-                modifier = Modifier
-                    .size(70.dp)
-                    .clip(CircleShape)
-                    .background(if (uiState.isProcessing) Color.Gray else TutorialTeal)
-            ) {
-                if (uiState.isProcessing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = White,
-                        strokeWidth = 2.dp
-                    )
-                } else {
+                    },
+                    enabled = !uiState.isProcessing && (uiState.textInput.isNotBlank() || uiState.selectedImageUri != null),
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(
+                            when {
+                                !uiState.isProcessing && (uiState.textInput.isNotBlank() || uiState.selectedImageUri != null) && uiState.selectedImageUri != null -> TutorialTeal
+                                !uiState.isProcessing && (uiState.textInput.isNotBlank() || uiState.selectedImageUri != null) -> MaterialTheme.colorScheme.primary
+                                else -> Color.Gray
+                            }
+                        )
+                ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Send,
                         contentDescription = "Send",
-                        tint = White,
-                        modifier = Modifier.size(24.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
                     )
                 }
             }
         }
 
+        // Settings gear floating in top right
+        IconButton(
+            onClick = {
+                // TODO: Open settings dialog for GPU toggle
+            },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 30.dp, end = 30.dp)
+                .size(48.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "Settings",
+                tint = Color.Gray,
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }
