@@ -219,11 +219,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
         Log.d(TAG, "Starting step sequence with ${steps.size} steps")
         
         // Extract subject from the first step
-        val extractedSubject = if (initialState.subject.isBlank()) {
-            extractSubjectFromResponse(steps.firstOrNull()?.tutorMessage ?: "")
-        } else {
-            initialState.subject
-        }
+        val extractedSubject = initialState.subject
 
         // Initialize step sequence state
         _uiState.update { state ->

@@ -1,4 +1,4 @@
-package com.jjordanoc.yachai.ui.screens
+package com.jjordanoc.yachai.ui.screens.whiteboard
 
 import android.app.Application
 import android.content.Intent
@@ -6,15 +6,12 @@ import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
-import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -45,12 +42,9 @@ import com.canhub.cropper.CropImageContractOptions
 import com.canhub.cropper.CropImageOptions
 import com.jjordanoc.yachai.R
 import com.jjordanoc.yachai.ui.Routes
-import com.jjordanoc.yachai.ui.screens.whiteboard.TutorialViewModel
-import com.jjordanoc.yachai.ui.screens.whiteboard.TutorialViewModelFactory
 import com.jjordanoc.yachai.ui.theme.TutorialTeal
 import com.jjordanoc.yachai.ui.theme.White
 import com.jjordanoc.yachai.utils.TAG
-import java.util.Locale
 
 @Composable
 fun ProblemInputScreen(

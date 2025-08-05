@@ -9,6 +9,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.jjordanoc.yachai.ui.screens.*
 import com.jjordanoc.yachai.ui.screens.whiteboard.HorizontalTutorialScreen
+import com.jjordanoc.yachai.ui.screens.whiteboard.ProblemInputScreen
+import com.jjordanoc.yachai.ui.screens.whiteboard.ProblemLoadingScreen
 import com.jjordanoc.yachai.ui.screens.whiteboard.TutorialViewModel
 import com.jjordanoc.yachai.ui.screens.whiteboard.TutorialViewModelFactory
 
@@ -23,6 +25,7 @@ object Routes {
     const val CHAT_SCREEN = "chat"
     const val HORIZONTAL_TUTORIAL_SCREEN = "horizontal_tutorial"
     const val PROBLEM_INPUT_SCREEN = "problem_input"
+    const val PROBLEM_LOADING_SCREEN = "problem_loading"
 }
 
 @Composable
@@ -57,6 +60,13 @@ fun AppNavigation() {
         
         composable(Routes.PROBLEM_INPUT_SCREEN) {
             ProblemInputScreen(
+                navController = navController,
+                viewModel = sharedTutorialViewModel
+            )
+        }
+        
+        composable(Routes.PROBLEM_LOADING_SCREEN) {
+            ProblemLoadingScreen(
                 navController = navController,
                 viewModel = sharedTutorialViewModel
             )

@@ -50,6 +50,11 @@ fun MainScreen(navController: NavController) {
             onClick = { navController.navigate(Routes.HORIZONTAL_TUTORIAL_SCREEN) },
             modifier = Modifier.fillMaxWidth()
         ) { Text(text = "Tutorial Directo (Debug)") }
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = { navController.navigate(Routes.PROBLEM_LOADING_SCREEN) },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text(text = "Loading Screen (Debug)") }
         Spacer(modifier = Modifier.height(32.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
