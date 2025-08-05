@@ -1552,16 +1552,14 @@ private fun DrawScope.drawAnimatedRectangle(
         isFakeBoldText = true
     }
     
-    // Phase 1: Draw rectangle outline
-    if (rectangle.animationPhase != RectanglePhase.SETUP) {
-        // Draw the outer rectangle outline
-        drawRect(
-            color = chalkWhite,
-            topLeft = androidx.compose.ui.geometry.Offset(startX, startY),
-            size = androidx.compose.ui.geometry.Size(rectWidth, rectHeight),
-            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
-        )
-    }
+    // Phase 1: Always draw rectangle outline (including SETUP phase)
+    // Draw the outer rectangle outline
+    drawRect(
+        color = chalkWhite,
+        topLeft = androidx.compose.ui.geometry.Offset(startX, startY),
+        size = androidx.compose.ui.geometry.Size(rectWidth, rectHeight),
+        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+    )
     
     // Phase 2: Draw vertical grid lines
     if (rectangle.animationPhase == RectanglePhase.VERTICAL_LINES || rectangle.animationPhase == RectanglePhase.FILLING_ROWS) {

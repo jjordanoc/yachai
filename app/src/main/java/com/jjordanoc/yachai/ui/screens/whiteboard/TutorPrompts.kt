@@ -31,7 +31,7 @@ object Primitives {
 //        AnimationPrimitive("highlightAngle", "Resalta un ángulo", mapOf("point" to "A, B, C", "type" to "right, acute, etc")),
 //        AnimationPrimitive("highlightSide", "Resalta un lado", mapOf("segment" to "AB, BC, AC", "label" to "base, altura, etc")),
 //        AnimationPrimitive("drawRuler", "Dibuja una regla", mapOf("range" to "[0, 20]", "unit" to "cm, mm")),
-        AnimationPrimitive("drawRectangle", "Dibuja un rectángulo", mapOf("base" to "número", "height" to "número")),
+        AnimationPrimitive("drawRectangle", "Dibuja un rectángulo", mapOf("length" to "número (largo)", "width" to "número (ancho)")),
     )
 
     val data = listOf(
@@ -69,39 +69,60 @@ object Primitives {
 fun systemPromptSocratic(chatHistory: String): String {
 
     // add base primitives
-    val primitives = Primitives.base + Primitives.geometry
+//    val primitives =
 
     val commonIntro = """
-Eres un tutor visual de matemáticas para estudiantes de quinto grado de primaria peruanos. Usas una pizarra digital para ilustrar cada paso del razonamiento. También hablas en voz alta a través de un personaje alpaca, que guía al estudiante con preguntas sencillas.
+Eres un tutor visual de matemáticas para estudiantes de quinto grado de primaria peruanos. Usas una pizarra digital para ilustrar cada paso del razonamiento. También hablas en voz alta a través de un personaje alpaca, narrando tu proceso de pensamiento mientras resuelves problemas.
 
 ### Tus herramientas:
 
 1. **Pizarra digital**: todo concepto o número debe mostrarse con una animación, y quedará visible para el estudiante en todo momento.
-2. **Frase hablada (`tutor_message`)**: es lo que el estudiante escucha. NO se muestra en la pizarra, solo se pronuncia. Usa frases claras y amigables que dirijan la atención a la animación.
+2. **Narración de pensamiento (`tutor_message`)**: Verbalizas CÓMO piensas mientras resuelves. El estudiante escucha tu razonamiento paso a paso.
 """.trimIndent()
 
-    val socraticRules = """
-### Reglas de Método Socrático:
+    val thinkAloudRules = """
+### Reglas de Pensamiento en Voz Alta:
 
-- **Empieza visualizando**: Usa la animación más apropiada para mostrar el problema
-- **Pregunta sobre lo observable**: "¿Qué vemos aquí?" "¿Qué necesitamos encontrar?"
-- **Construye desde lo conocido**: Conecta con conceptos que el estudiante ya entiende
-- **Una pregunta por vez**: Guía paso a paso hacia el descubrimiento
-- **El estudiante debe descubrir** el patrón o regla, no memorizar fórmulas
-- **Usa el contexto peruano** para hacer conexiones familiares
-- **NO des la respuesta final directamente** - guía hacia que la encuentren solos
+- **Narra tu proceso mental**: "Me pregunto..." "Veo que..." "Ahora pienso..."
+- **Explica tus decisiones**: "Voy a hacer esto porque..." "Primero necesito..."
+- **Muestra dudas naturales**: "Mmm, ¿cómo resuelvo esto?" "Ah, ya sé qué hacer"
+- **Celebra descubrimientos**: "¡Ah, claro!" "¡Perfecto, eso funciona!"
+- **Conecta pasos**: "Como ya dibujé esto, ahora puedo..." 
+- **Usa contexto peruano** para hacer ejemplos familiares
+- **Mantén tono conversacional** como si pensaras en voz alta naturalmente
 """.trimIndent()
+
+    val multiStepFormat = """
+### Formato de Múltiples Pasos:
+
+Genera 3-5 pasos explicativos. Cada paso debe tener:
+- **"tutor_message"**: Narración clara
+- **"animation"**: UN SOLO comando de animación que ilustre exactamente lo que narras
+
+Mantén cada paso simple y enfocado en una sola idea visual.
+"""
 
     val outputFormat = """
 ### Formato obligatorio:
 
+**Problema**: "María quiere cercar un jardín rectangular de 6 metros de largo y 4 metros de ancho. ¿Cuántos metros cuadrados tiene el jardín?"
+
+**Respuesta esperada**:
 ```json
-{
-  "tutor_message": "Pregunta clara y breve en español.",
-  "animation": [
-    { "command": "COMANDO", "args": { ... } }
-  ]
-}
+[
+  {
+    "tutor_message": "¡Perfecto! Veo que María necesita saber el área de su jardín rectangular. Voy a dibujarlo primero para visualizarlo mejor.",
+    "animation": { "command": "someCommand", "args": { "base": "6", "height": "4" } }
+  },
+  {
+    "tutor_message": "Ahora me pregunto… ¿cómo calculo el área? Creo que si divido el jardín en cuadritos de 1 metro será más fácil de entender.",
+    "animation": { "command": "drawGrid", "args": { "width": "6", "height": "4", "unit": "1m²" }
+  },
+  {
+    "tutor_message": "¡Excelente! Puedo contar fácilmente: 6 cuadritos por fila y 4 filas. Entonces: 6 × 4 = 24 metros cuadrados.",
+    "animation": { "command": "highlightSide", "args": { "segment": "base", "label": "6 cuadritos" } }
+  }
+]
 """.trimIndent()
 
     fun chatHistoryWrapper(chatHistory: String) : String {
@@ -112,26 +133,28 @@ Eres un tutor visual de matemáticas para estudiantes de quinto grado de primari
         }
     }
 
-    val primitiveDescriptions = primitives.joinToString("\n") { primitive ->
-        val argsFormatted = primitive.args.entries.joinToString("\n    ") { "- ${it.key}: ${it.value}" }
-        "- `${primitive.name}`\n    $argsFormatted"
-    }
 
-    fun primitivesWrapper(primitives: String) : String {
+
+    fun primitivesWrapper(primitives: List<AnimationPrimitive>) : String {
+        val primitiveDescriptions = primitives.joinToString("\n") { primitive ->
+            val argsFormatted = primitive.args.entries.joinToString("\n    ") { "- ${it.key}: ${it.value}" }
+            "- `${primitive.name}`\n${primitive.description}\n    $argsFormatted"
+        }
         return """
-### Comandos de animación disponibles
-$primitives
-
-**Nota**: Las animaciones aparecen verticalmente en la pizarra. Usa una por vez.
+        ### Comandos de animación disponibles
+        $primitiveDescriptions
+        
+        **Nota**: Las animaciones aparecen verticalmente en la pizarra. Usa una por vez.
         """.trimIndent()
     }
 
 
     return listOf(
         commonIntro,
-        socraticRules,
-        primitivesWrapper(primitiveDescriptions),
+        thinkAloudRules,
+        multiStepFormat,
+        primitivesWrapper(Primitives.base + Primitives.geometry),
         outputFormat,
-        chatHistoryWrapper(chatHistory)
+//        chatHistoryWrapper(chatHistory)
     ).joinToString("\n\n")
 }

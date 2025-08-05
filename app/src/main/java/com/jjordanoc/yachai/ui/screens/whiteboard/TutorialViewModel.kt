@@ -225,8 +225,9 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                     }
                     "drawRectangle" -> {
                         Log.d(TAG, "drawRectangle command found with args: ${command.args}")
-                        val length = command.args.length
-                        val width = command.args.width
+                        // Handle both old format (base, height) and new format (length, width)
+                        val length = command.args.length ?: command.args.base
+                        val width = command.args.width ?: command.args.height
                         val lengthLabel = command.args.lengthLabel ?: "longitud"
                         val widthLabel = command.args.widthLabel ?: "ancho"
                         

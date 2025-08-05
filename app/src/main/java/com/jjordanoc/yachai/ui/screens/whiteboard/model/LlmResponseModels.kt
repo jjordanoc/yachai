@@ -41,6 +41,8 @@ data class AnimationArgs(
     // Rectangle animation arguments
     val length: Int? = null,
     val width: Int? = null,
+    val base: Int? = null,
+    val height: Int? = null,
     val lengthLabel: String? = null,
     val widthLabel: String? = null
 )
