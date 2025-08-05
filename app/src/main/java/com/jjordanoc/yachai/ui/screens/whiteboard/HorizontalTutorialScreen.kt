@@ -55,6 +55,7 @@ import android.graphics.Paint
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardItem
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.RectanglePhase
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.GridPhase
+import com.jjordanoc.yachai.ui.screens.whiteboard.animations.WhiteboardCanvas
 
 @Composable
 fun HorizontalTutorialScreen(
@@ -241,7 +242,22 @@ fun HorizontalTutorialScreen(
                                     Spacer(modifier = Modifier.height(16.dp))
                                 }
                                 
-                                // Display rectangle area animation if present
+                                // Display animations using new system
+                                if (uiState.activeAnimations.isNotEmpty()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(200.dp)
+                                    ) {
+                                        WhiteboardCanvas(
+                                            animations = uiState.activeAnimations,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
+                                
+                                // Legacy animation support (will be removed)
                                 uiState.currentRectangle?.let { rectangle ->
                                     Box(
                                         modifier = Modifier

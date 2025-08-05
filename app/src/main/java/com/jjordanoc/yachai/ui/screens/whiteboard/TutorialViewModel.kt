@@ -25,6 +25,8 @@ import com.jjordanoc.yachai.ui.screens.whiteboard.model.TutorialStep
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardItem
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.RectanglePhase
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.GridPhase
+import com.jjordanoc.yachai.ui.screens.whiteboard.animations.MathAnimation
+import com.jjordanoc.yachai.ui.screens.whiteboard.animations.RectangleAnimation
 import androidx.lifecycle.ViewModelProvider
 import com.jjordanoc.yachai.ui.screens.whiteboard.systemPromptSocratic
 
@@ -64,11 +66,14 @@ data class TutorialState(
     val initialProblemStatement: String = "",
     val isAlpacaSpeaking: Boolean = false,
     val isReadyForNextStep: Boolean = false, // True when alpaca finished speaking and user can proceed
+    // New animation system - list of active animations
+    val activeAnimations: List<MathAnimation> = emptyList(),
+    val animationTrigger: Long = 0L, // Used to trigger animation recomposition
+    // Legacy state for backward compatibility (will be removed)
     val currentNumberLine: WhiteboardItem.AnimatedNumberLine? = null,
     val currentExpression: String? = null,
     val currentRectangle: WhiteboardItem.AnimatedRectangle? = null,
     val currentGrid: WhiteboardItem.AnimatedGrid? = null,
-    val animationTrigger: Long = 0L, // Used to trigger animation recomposition
     // Data visualization state
     val currentDataTable: WhiteboardItem.DataTable? = null,
     val currentTallyChart: WhiteboardItem.TallyChart? = null,
@@ -261,36 +266,16 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
         Log.d(TAG, "Processing step ${currentState.currentStepIndex + 1}/${currentState.totalSteps}: ${currentStep.tutorMessage}")
 
         // Handle clear_previous logic
-        var clearedState = currentState
+        var currentAnimations = currentState.activeAnimations
         if (currentStep.animation.clearPrevious) {
             Log.d(TAG, "Clearing previous animations due to clear_previous=true")
-            clearedState = currentState.copy(
-                currentNumberLine = null,
-                currentExpression = null,
-                currentRectangle = null,
-                currentGrid = null,
-                currentDataTable = null,
-                currentTallyChart = null,
-                currentBarChart = null,
-                currentPieChart = null,
-                currentDotPlot = null,
-                currentDataSummary = null
-            )
+            currentAnimations = emptyList()
         }
 
-        // Process the animation command for current step
-        val animationResult = processAnimationCommand(
+        // Process the animation command for current step using new system
+        val newAnimations = processAnimationCommandNew(
             currentStep.animation,
-            clearedState.currentNumberLine,
-            clearedState.currentExpression,
-            clearedState.currentRectangle,
-            clearedState.currentGrid,
-            clearedState.currentDataTable,
-            clearedState.currentTallyChart,
-            clearedState.currentBarChart,
-            clearedState.currentPieChart,
-            clearedState.currentDotPlot,
-            clearedState.currentDataSummary
+            currentAnimations
         )
 
         val animationTrigger = System.currentTimeMillis()
@@ -301,16 +286,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 tutorMessage = currentStep.tutorMessage,
                 isAlpacaSpeaking = true,
                 isReadyForNextStep = false, // Disable next step button until alpaca finishes speaking
-                currentNumberLine = animationResult.first,
-                currentExpression = animationResult.second,
-                currentRectangle = animationResult.third,
-                currentGrid = animationResult.fourth,
-                currentDataTable = animationResult.fifth,
-                currentTallyChart = animationResult.sixth,
-                currentBarChart = animationResult.seventh,
-                currentPieChart = animationResult.eighth,
-                currentDotPlot = animationResult.ninth,
-                currentDataSummary = animationResult.tenth,
+                activeAnimations = newAnimations,
                 animationTrigger = animationTrigger
             )
         }
@@ -479,6 +455,71 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
     fun resumeStepSequence() {
         scheduleNextStep()
         Log.d(TAG, "Step sequence resumed")
+    }
+
+    /**
+     * Process animation command and return a list of active animations
+     * This is the new animation system that replaces the tuple approach
+     */
+    private fun processAnimationCommandNew(
+        command: com.jjordanoc.yachai.ui.screens.whiteboard.model.AnimationCommand,
+        currentAnimations: List<MathAnimation>
+    ): List<MathAnimation> {
+        val newAnimations = currentAnimations.toMutableList()
+        
+        when (command.command) {
+            "drawRectangle" -> {
+                Log.d(TAG, "drawRectangle command found with args: ${command.args}")
+                
+                // Handle new string-based base/height parameters
+                val baseStr = command.args.base
+                val heightStr = command.args.height
+                
+                // Also support legacy numeric parameters
+                val lengthNum = command.args.length
+                val widthNum = command.args.width
+                
+                // Parse string values to integers
+                val length = try {
+                    baseStr?.toInt() ?: lengthNum
+                } catch (e: NumberFormatException) {
+                    lengthNum
+                }
+                
+                val width = try {
+                    heightStr?.toInt() ?: widthNum
+                } catch (e: NumberFormatException) {
+                    widthNum
+                }
+                
+                val lengthLabel = command.args.lengthLabel ?: "longitud"
+                val widthLabel = command.args.widthLabel ?: "ancho"
+                
+                if (length != null && width != null && length > 0 && width > 0) {
+                    // Remove any existing rectangle animations
+                    newAnimations.removeAll { it is RectangleAnimation }
+                    
+                    // Add new rectangle animation
+                    val rectangleAnimation = RectangleAnimation(
+                        length = length,
+                        width = width,
+                        lengthLabel = lengthLabel,
+                        widthLabel = widthLabel
+                    )
+                    newAnimations.add(rectangleAnimation)
+                    
+                    Log.d(TAG, "Created rectangle animation: ${length}x${width}")
+                } else {
+                    Log.w(TAG, "Invalid arguments for drawRectangle: base=$baseStr, height=$heightStr")
+                }
+            }
+            
+            else -> {
+                Log.w(TAG, "Unknown animation command: ${command.command}")
+            }
+        }
+        
+        return newAnimations
     }
 
     private fun processAnimationCommand(
