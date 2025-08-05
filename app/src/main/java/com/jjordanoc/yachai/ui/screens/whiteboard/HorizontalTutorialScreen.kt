@@ -211,30 +211,6 @@ fun HorizontalTutorialScreen(
                     .padding(vertical = 8.dp, horizontal = 20.dp)
             ) {
                 
-                // History indicator (below step indicator if both present)
-                if (uiState.isViewingHistory) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(
-                                top = if (uiState.isInStepSequence) 56.dp else 16.dp, 
-                                end = 220.dp
-                            )
-                            .background(
-                                color = White.copy(alpha = 0.2f),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            text = "Historial ${uiState.currentHistoryIndex + 1}/${uiState.chatHistory.size}",
-                            color = White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-                
                 // Main content text - show different content based on state with scrolling fallback
                 LazyColumn(
                     modifier = Modifier

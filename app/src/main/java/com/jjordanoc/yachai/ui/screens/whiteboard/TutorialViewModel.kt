@@ -112,7 +112,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
             )
 
             try {
-                LlmHelper.switchDataSource(LlmHelper.DataSourceType.MEDIAPIPE, context, modelConfig)
+                LlmHelper.switchDataSource(LlmHelper.DataSourceType.AZURE, context, modelConfig)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to initialize model: ${e.localizedMessage}")
                 _uiState.update {
@@ -233,7 +233,8 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 isReadyForNextStep = false, // Start with button disabled
                 subject = extractedSubject,
                 currentHistoryIndex = -1,
-                isViewingHistory = false
+                isViewingHistory = false,
+                selectedImageUri = null // Clear image now that processing is complete
             )
         }
 
@@ -830,8 +831,8 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
             tutorMessage = null, // No loading message needed since we go straight to chatting
             isProcessing = true, // Set processing to true when starting to process
             isAlpacaSpeaking = true, // Start alpaca animation to show thinking
-            showConfirmationFailureMessage = false,
-            selectedImageUri = null // Clear image after sending
+            showConfirmationFailureMessage = false
+            // Keep selectedImageUri so it can be displayed in loading screen
         ).also {
             Log.d(TAG, "State updated for sending text. New flow state: ${it.flowState}")
         }}

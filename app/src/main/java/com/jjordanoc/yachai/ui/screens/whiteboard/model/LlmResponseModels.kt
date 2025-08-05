@@ -57,14 +57,6 @@ data class AnimationCommand(
 )
 
 @Serializable
-data class InterpretResponse(
-    @SerialName("problem_type") val problemType: String?,
-    @SerialName("tutor_message") val tutorMessage: String?,
-    val command: String?,
-    val args: AnimationArgs?
-)
-
-@Serializable
 data class LlmResponse(
     @SerialName("tutor_message") val tutorMessage: String?,
     val hint: String? = null,

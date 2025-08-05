@@ -1,6 +1,7 @@
 package com.jjordanoc.yachai.ui.screens.whiteboard
 
 import android.app.Application
+import android.util.Log
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -41,6 +42,13 @@ fun ProblemLoadingScreen(
     )
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    
+    // Debug logging for image URI and processing state
+    LaunchedEffect(uiState.selectedImageUri, uiState.isProcessing) {
+        Log.d("ProblemLoadingScreen", "Selected image URI: ${uiState.selectedImageUri}")
+        Log.d("ProblemLoadingScreen", "Text input: ${uiState.textInput}")
+        Log.d("ProblemLoadingScreen", "Is processing: ${uiState.isProcessing}")
+    }
     
     // Navigation logic - navigate to tutorial screen when processing finishes and we have a tutor message
     LaunchedEffect(uiState.isProcessing, uiState.tutorMessage) {
@@ -251,14 +259,36 @@ fun ProblemLoadingScreen(
                     when {
                         // If there's an image, show it
                         uiState.selectedImageUri != null -> {
-                            Image(
-                                painter = rememberAsyncImagePainter(uiState.selectedImageUri),
-                                contentDescription = "Problem image",
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(RoundedCornerShape(4.dp)),
-                                contentScale = ContentScale.Crop
-                            )
+                            var imageLoadError by remember { mutableStateOf(false) }
+                            
+                            if (!imageLoadError) {
+                                Image(
+                                    painter = rememberAsyncImagePainter(
+                                        model = uiState.selectedImageUri,
+                                        onError = {
+                                            Log.e("ProblemLoadingScreen", "Failed to load image: ${uiState.selectedImageUri}")
+                                            imageLoadError = true
+                                        },
+                                        onSuccess = {
+                                            Log.d("ProblemLoadingScreen", "Image loaded successfully: ${uiState.selectedImageUri}")
+                                        }
+                                    ),
+                                    contentDescription = "Problem image",
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(RoundedCornerShape(4.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                // Fallback when image fails to load
+                                Text(
+                                    text = "Error cargando imagen",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color.Red,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                         // If there's only text, show it in the placeholder
                         uiState.textInput.isNotBlank() -> {
@@ -271,6 +301,16 @@ fun ProblemLoadingScreen(
                                 maxLines = 4,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                        // If neither image nor text, show placeholder
+                        else -> {
+                            Text(
+                                text = "Sin imagen seleccionada",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.Gray,
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
