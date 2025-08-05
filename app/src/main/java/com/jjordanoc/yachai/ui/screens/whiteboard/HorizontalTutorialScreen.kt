@@ -178,11 +178,7 @@ fun HorizontalTutorialScreen(
         }
     }
     
-    // Show loading screen if model is loading
-    if (uiState.isModelLoading) {
-        LoadingScreen()
-        return
-    }
+
     
     Column(
         modifier = Modifier
@@ -555,41 +551,7 @@ fun HorizontalTutorialScreen(
         }
     }
 
-@Composable
-private fun LoadingScreen() {
-    val infiniteTransition = rememberInfiniteTransition(label = "loading")
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing)
-        ),
-        label = "rotation"
-    )
-
-    Surface(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            CircularProgressIndicator(
-                modifier = Modifier
-                    .height(64.dp)
-                    .graphicsLayer { rotationZ = rotation },
-                strokeWidth = 6.dp
-            )
-            Spacer(Modifier.height(24.dp))
-            Text(
-                text = "Preparando la pizarra y repasando fórmulas…",
-                style = MaterialTheme.typography.titleMedium,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-} 
+ 
 
 @Composable
 private fun ArithmeticNumberLine(

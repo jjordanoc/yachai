@@ -22,7 +22,7 @@ fun SplashScreen(navController: NavController) {
     LaunchedEffect(Unit) {
         delay(1000) // Simulate a loading time
         val destination = if (model.isDownloaded(context)) {
-            Routes.MAIN_SCREEN
+            Routes.MODEL_LOADING_SCREEN // Go directly to model loading if downloaded
         } else {
             Routes.ONBOARDING_SCREEN
         }

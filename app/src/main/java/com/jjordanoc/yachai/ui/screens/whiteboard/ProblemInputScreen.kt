@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -263,21 +264,39 @@ fun ProblemInputScreen(
         
         Spacer(modifier = Modifier.height(15.dp))
         
-        // Greeting message
-        Box(
+        // Top bar with settings gear
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 15.dp),
-            contentAlignment = Alignment.Center
+                .padding(bottom = 15.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            // Greeting message
             Text(
                 text = "¡Hola! ¿Qué problema quieres resolver hoy?",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color.Black,
                 textAlign = TextAlign.Center,
-                lineHeight = 24.sp
+                lineHeight = 24.sp,
+                modifier = Modifier.weight(1f)
             )
+            
+            // Settings gear for GPU toggle
+            IconButton(
+                onClick = { 
+                    // TODO: Open settings dialog for GPU toggle
+                },
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    tint = Color.Gray,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
         
         Spacer(modifier = Modifier.height(15.dp))
