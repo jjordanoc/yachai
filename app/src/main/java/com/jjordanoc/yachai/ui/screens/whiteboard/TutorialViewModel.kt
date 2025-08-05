@@ -23,11 +23,12 @@ import com.jjordanoc.yachai.ui.screens.whiteboard.model.MultiStepResponse
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.TutorialStep
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardItem
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.RectanglePhase
+import com.jjordanoc.yachai.ui.screens.whiteboard.model.GridPhase
 import androidx.lifecycle.ViewModelProvider
 
-data class Tuple9<A, B, C, D, E, F, G, H, I>(
+data class Tuple10<A, B, C, D, E, F, G, H, I, J>(
     val first: A, val second: B, val third: C, val fourth: D, val fifth: E,
-    val sixth: F, val seventh: G, val eighth: H, val ninth: I
+    val sixth: F, val seventh: G, val eighth: H, val ninth: I, val tenth: J
 )
 
 enum class TutorialFlowState {
@@ -43,6 +44,7 @@ data class ChatHistoryEntry(
     val numberLine: WhiteboardItem.AnimatedNumberLine? = null,
     val expression: String? = null,
     val rectangle: WhiteboardItem.AnimatedRectangle? = null,
+    val grid: WhiteboardItem.AnimatedGrid? = null,
     // Data visualization history
     val dataTable: WhiteboardItem.DataTable? = null,
     val tallyChart: WhiteboardItem.TallyChart? = null,
@@ -67,6 +69,7 @@ data class TutorialState(
     val currentNumberLine: WhiteboardItem.AnimatedNumberLine? = null,
     val currentExpression: String? = null,
     val currentRectangle: WhiteboardItem.AnimatedRectangle? = null,
+    val currentGrid: WhiteboardItem.AnimatedGrid? = null,
     val animationTrigger: Long = 0L, // Used to trigger animation recomposition
     // Data visualization state
     val currentDataTable: WhiteboardItem.DataTable? = null,
@@ -261,6 +264,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 currentNumberLine = null,
                 currentExpression = null,
                 currentRectangle = null,
+                currentGrid = null,
                 currentDataTable = null,
                 currentTallyChart = null,
                 currentBarChart = null,
@@ -276,6 +280,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
             clearedState.currentNumberLine,
             clearedState.currentExpression,
             clearedState.currentRectangle,
+            clearedState.currentGrid,
             clearedState.currentDataTable,
             clearedState.currentTallyChart,
             clearedState.currentBarChart,
@@ -294,12 +299,13 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 currentNumberLine = animationResult.first,
                 currentExpression = animationResult.second,
                 currentRectangle = animationResult.third,
-                currentDataTable = animationResult.fourth,
-                currentTallyChart = animationResult.fifth,
-                currentBarChart = animationResult.sixth,
-                currentPieChart = animationResult.seventh,
-                currentDotPlot = animationResult.eighth,
-                currentDataSummary = animationResult.ninth,
+                currentGrid = animationResult.fourth,
+                currentDataTable = animationResult.fifth,
+                currentTallyChart = animationResult.sixth,
+                currentBarChart = animationResult.seventh,
+                currentPieChart = animationResult.eighth,
+                currentDotPlot = animationResult.ninth,
+                currentDataSummary = animationResult.tenth,
                 animationTrigger = animationTrigger
             )
         }
@@ -353,6 +359,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 numberLine = currentState.currentNumberLine,
                 expression = currentState.currentExpression,
                 rectangle = currentState.currentRectangle,
+                grid = currentState.currentGrid,
                 dataTable = currentState.currentDataTable,
                 tallyChart = currentState.currentTallyChart,
                 barChart = currentState.currentBarChart,
@@ -431,17 +438,19 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
         currentNumberLine: WhiteboardItem.AnimatedNumberLine?,
         currentExpression: String?,
         currentRectangle: WhiteboardItem.AnimatedRectangle?,
+        currentGrid: WhiteboardItem.AnimatedGrid?,
         currentDataTable: WhiteboardItem.DataTable?,
         currentTallyChart: WhiteboardItem.TallyChart?,
         currentBarChart: WhiteboardItem.BarChart?,
         currentPieChart: WhiteboardItem.PieChart?,
         currentDotPlot: WhiteboardItem.DotPlot?,
         currentDataSummary: WhiteboardItem.DataSummary?
-    ): Tuple9<WhiteboardItem.AnimatedNumberLine?, String?, WhiteboardItem.AnimatedRectangle?, WhiteboardItem.DataTable?, WhiteboardItem.TallyChart?, WhiteboardItem.BarChart?, WhiteboardItem.PieChart?, WhiteboardItem.DotPlot?, WhiteboardItem.DataSummary?> {
+    ): Tuple10<WhiteboardItem.AnimatedNumberLine?, String?, WhiteboardItem.AnimatedRectangle?, WhiteboardItem.AnimatedGrid?, WhiteboardItem.DataTable?, WhiteboardItem.TallyChart?, WhiteboardItem.BarChart?, WhiteboardItem.PieChart?, WhiteboardItem.DotPlot?, WhiteboardItem.DataSummary?> {
         
         var newNumberLine = currentNumberLine
         var newExpression = currentExpression
         var newRectangle = currentRectangle
+        var newGrid = currentGrid
         var newDataTable = currentDataTable
         var newTallyChart = currentTallyChart
         var newBarChart = currentBarChart
@@ -529,41 +538,77 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
             "drawGrid" -> {
                 Log.d(TAG, "drawGrid command found with args: ${command.args}")
                 
-                // Parse grid parameters using the same logic as drawRectangle
-                val gridWidthStr = command.args.base  // "width" maps to base
-                val gridHeightStr = command.args.height // "height" maps to height
+                // Parse grid parameters - following TutorPrompts.kt structure: length, width, unit
+                val lengthStr = command.args.base // "length" parameter 
+                val widthStr = command.args.height // "width" parameter
                 val unit = command.args.unit ?: "1"
                 
-                // Also try numeric versions
-                val gridWidthNum = command.args.width
-                val gridHeightNum = command.args.length
+                // Also try numeric versions and alternate field names
+                val lengthNum = command.args.length ?: command.args.width
+                val widthNum = command.args.width ?: command.args.length
+                
+                val gridLength = try {
+                    lengthStr?.toInt() ?: lengthNum
+                } catch (e: NumberFormatException) {
+                    lengthNum
+                }
                 
                 val gridWidth = try {
-                    gridWidthStr?.toInt() ?: gridWidthNum
+                    widthStr?.toInt() ?: widthNum  
                 } catch (e: NumberFormatException) {
-                    gridWidthNum
+                    widthNum
                 }
                 
-                val gridHeight = try {
-                    gridHeightStr?.toInt() ?: gridHeightNum
-                } catch (e: NumberFormatException) {
-                    gridHeightNum
-                }
-                
-                if (gridWidth != null && gridHeight != null && gridWidth > 0 && gridHeight > 0) {
-                    // Create a rectangle with grid visualization (advanced to VERTICAL_LINES phase to show grid)
-                    newRectangle = WhiteboardItem.AnimatedRectangle(
-                        length = gridWidth,
-                        width = gridHeight,
-                        lengthLabel = "ancho ($unit)",
-                        widthLabel = "alto ($unit)",
-                        animationPhase = RectanglePhase.VERTICAL_LINES // Show grid immediately
+                if (gridLength != null && gridWidth != null && gridLength > 0 && gridWidth > 0) {
+                    // Create AnimatedGrid that will overlay on top of existing rectangle
+                    newGrid = WhiteboardItem.AnimatedGrid(
+                        length = gridLength,
+                        width = gridWidth,
+                        unit = unit,
+                        animationPhase = GridPhase.SETUP, // Start with setup phase
+                        lengthLabel = "largo",
+                        widthLabel = "ancho"
                     )
-                    // Also set expression to show the unit information
-                    newExpression = "Cuadrícula de $gridWidth × $gridHeight unidades ($unit cada una)"
-                    Log.d(TAG, "Created grid: ${gridWidth}x${gridHeight}, unit=$unit")
+                    Log.d(TAG, "Created animated grid: ${gridLength}x${gridWidth}, unit=$unit")
                 } else {
-                    Log.w(TAG, "Invalid arguments for drawGrid: width=$gridWidthStr ($gridWidthNum), height=$gridHeightStr ($gridHeightNum)")
+                    Log.w(TAG, "Invalid arguments for drawGrid: length=$lengthStr ($lengthNum), width=$widthStr ($widthNum)")
+                }
+            }
+
+            "updateGrid" -> {
+                Log.d(TAG, "updateGrid command found")
+                if (newGrid != null) {
+                    // Progress the grid animation phase
+                    val nextPhase = when (newGrid.animationPhase) {
+                        GridPhase.SETUP -> GridPhase.GRID_LINES
+                        GridPhase.GRID_LINES -> GridPhase.FILLING_UNITS
+                        GridPhase.FILLING_UNITS -> {
+                            // Advance filling by one unit square with smooth progress
+                            val nextColumn = if (newGrid.currentColumn >= newGrid.length - 1) {
+                                0
+                            } else {
+                                newGrid.currentColumn + 1
+                            }
+                            val nextRow = if (newGrid.currentColumn >= newGrid.length - 1) {
+                                newGrid.currentRow + 1
+                            } else {
+                                newGrid.currentRow
+                            }
+                            
+                            newGrid = newGrid.copy(
+                                currentRow = nextRow,
+                                currentColumn = nextColumn,
+                                fillProgress = 0f // Reset progress for next unit
+                            )
+                            GridPhase.FILLING_UNITS
+                        }
+                    }
+                    
+                    if (newGrid.animationPhase != GridPhase.FILLING_UNITS) {
+                        newGrid = newGrid.copy(animationPhase = nextPhase)
+                    }
+                    
+                    Log.d(TAG, "Updated grid phase: $nextPhase, row: ${newGrid.currentRow}, col: ${newGrid.currentColumn}")
                 }
             }
 
@@ -705,7 +750,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
             }
         }
 
-        return Tuple9(newNumberLine, newExpression, newRectangle, newDataTable, newTallyChart, newBarChart, newPieChart, newDotPlot, newDataSummary)
+        return Tuple10(newNumberLine, newExpression, newRectangle, newGrid, newDataTable, newTallyChart, newBarChart, newPieChart, newDotPlot, newDataSummary)
     }
 
     fun onImageSelected(uri: Uri?) {

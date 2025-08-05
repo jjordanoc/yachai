@@ -8,6 +8,12 @@ enum class RectanglePhase {
     FILLING_ROWS     // Fill unit squares row by row
 }
 
+enum class GridPhase {
+    SETUP,           // Show base rectangle
+    GRID_LINES,      // Show grid lines 
+    FILLING_UNITS    // Fill unit squares with smooth animation
+}
+
 sealed class WhiteboardItem {
     data class AnimatedTriangle(
         val a: Offset,
@@ -32,6 +38,19 @@ sealed class WhiteboardItem {
         val animationPhase: RectanglePhase = RectanglePhase.SETUP,
         val showDimensions: Boolean = true,
         val lengthLabel: String = "longitud",
+        val widthLabel: String = "ancho"
+    ) : WhiteboardItem()
+
+    data class AnimatedGrid(
+        val length: Int,          // horizontal dimension (number of unit squares)
+        val width: Int,           // vertical dimension (number of unit squares)
+        val unit: String = "1",   // unit label (e.g., "1m²", "1cm²")
+        val animationPhase: GridPhase = GridPhase.SETUP,
+        val currentColumn: Int = 0,    // Current column being filled (0 to length-1)
+        val currentRow: Int = 0,       // Current row being filled (0 to width-1)
+        val fillProgress: Float = 0f,  // Progress of current unit square filling (0f to 1f)
+        val showDimensions: Boolean = true,
+        val lengthLabel: String = "largo",
         val widthLabel: String = "ancho"
     ) : WhiteboardItem()
 

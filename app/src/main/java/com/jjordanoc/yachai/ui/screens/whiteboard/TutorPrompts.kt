@@ -26,6 +26,7 @@ object Primitives {
 
     val geometry = listOf(
         AnimationPrimitive("drawRectangle", "Dibuja un rectángulo", mapOf("length" to "número (largo)", "width" to "número (ancho)")),
+        AnimationPrimitive("drawGrid", "Dibuja una cuadrícula sobre el rectángulo para mostrar área", mapOf("length" to "número (largo)", "width" to "número (ancho)", "unit" to "unidad de medida (ej: 1m², 1cm²)")),
     )
 
     val data = listOf(

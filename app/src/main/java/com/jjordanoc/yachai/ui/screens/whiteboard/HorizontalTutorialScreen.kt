@@ -72,6 +72,7 @@ import androidx.compose.ui.graphics.toArgb
 import android.graphics.Paint
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardItem
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.RectanglePhase
+import com.jjordanoc.yachai.ui.screens.whiteboard.model.GridPhase
 
 @Composable
 fun HorizontalTutorialScreen(
@@ -567,6 +568,21 @@ fun HorizontalTutorialScreen(
                                     ) {
                                         AnimatedRectangleComponent(
                                             rectangle = rectangle,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
+                                
+                                // Display grid animation if present (overlays on rectangle)
+                                uiState.currentGrid?.let { grid ->
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(200.dp)
+                                    ) {
+                                        AnimatedGridComponent(
+                                            grid = grid,
                                             modifier = Modifier.fillMaxSize()
                                         )
                                     }
@@ -1706,6 +1722,222 @@ private fun DrawScope.drawAnimatedRectangle(
                     textPaint
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun AnimatedGridComponent(
+    grid: WhiteboardItem.AnimatedGrid,
+    modifier: Modifier = Modifier
+) {
+    // Trigger automatic grid animation progression
+    LaunchedEffect(grid.animationPhase) {
+        if (grid.animationPhase == GridPhase.SETUP) {
+            kotlinx.coroutines.delay(1000) // Wait 1s after setup
+            // TODO: Trigger updateGrid command to move to GRID_LINES phase
+        } else if (grid.animationPhase == GridPhase.GRID_LINES) {
+            kotlinx.coroutines.delay(1000) // Wait 1s after grid lines
+            // TODO: Trigger updateGrid command to start filling
+        }
+    }
+    
+    Canvas(modifier = modifier) {
+        drawAnimatedGrid(
+            grid = grid,
+            canvasSize = size
+        )
+    }
+}
+
+private fun DrawScope.drawAnimatedGrid(
+    grid: WhiteboardItem.AnimatedGrid,
+    canvasSize: androidx.compose.ui.geometry.Size
+) {
+    // Chalk colors for authentic chalkboard look
+    val chalkWhite = Color(0xFFF5F5DC) // Slightly off-white like real chalk
+    val chalkBlue = Color(0xFF87CEEB)  // Light blue for filled squares
+    val chalkRed = Color(0xFFDC143C)   // Red for dimensions
+    val chalkYellow = Color(0xFFFFE4B5) // Light yellow for unit labels
+    val chalkGreen = Color(0xFF98FB98)  // Light green for progressive fill
+    
+    // Calculate the available space for the grid
+    val padding = 40.dp.toPx()
+    val availableWidth = canvasSize.width - (2 * padding)
+    val availableHeight = canvasSize.height - (2 * padding) - 60.dp.toPx() // Space for labels
+    
+    // Calculate unit square size based on grid dimensions
+    val unitSize = minOf(
+        availableWidth / grid.length,
+        availableHeight / grid.width
+    )
+    
+    // Calculate actual grid size
+    val gridWidth = unitSize * grid.length
+    val gridHeight = unitSize * grid.width
+    
+    // Center the grid
+    val startX = (canvasSize.width - gridWidth) / 2f
+    val startY = (canvasSize.height - gridHeight) / 2f + 30.dp.toPx() // Leave space for top labels
+    
+    val textPaint = Paint().apply {
+        color = chalkWhite.toArgb()
+        textSize = 12.dp.toPx()
+        textAlign = Paint.Align.CENTER
+    }
+    
+    val unitLabelPaint = Paint().apply {
+        color = chalkYellow.toArgb()
+        textSize = 10.dp.toPx()
+        textAlign = Paint.Align.CENTER
+    }
+    
+    // Phase 1: Show base rectangle outline (SETUP)
+    if (grid.animationPhase != GridPhase.SETUP) {
+        // Draw the outer grid outline
+        drawRect(
+            color = chalkWhite,
+            topLeft = androidx.compose.ui.geometry.Offset(startX, startY),
+            size = androidx.compose.ui.geometry.Size(gridWidth, gridHeight),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+        )
+    }
+    
+    // Phase 2: Draw grid lines (GRID_LINES)
+    if (grid.animationPhase == GridPhase.GRID_LINES || grid.animationPhase == GridPhase.FILLING_UNITS) {
+        // Draw vertical lines to show unit columns
+        for (i in 1 until grid.length) {
+            val x = startX + (i * unitSize)
+            drawLine(
+                color = chalkWhite,
+                start = androidx.compose.ui.geometry.Offset(x, startY),
+                end = androidx.compose.ui.geometry.Offset(x, startY + gridHeight),
+                strokeWidth = 1.dp.toPx()
+            )
+        }
+        
+        // Draw horizontal lines to show unit rows
+        for (i in 1 until grid.width) {
+            val y = startY + (i * unitSize)
+            drawLine(
+                color = chalkWhite,
+                start = androidx.compose.ui.geometry.Offset(startX, y),
+                end = androidx.compose.ui.geometry.Offset(startX + gridWidth, y),
+                strokeWidth = 1.dp.toPx()
+            )
+        }
+        
+        // Draw unit labels in each grid cell
+        for (row in 0 until grid.width) {
+            for (col in 0 until grid.length) {
+                val cellX = startX + (col * unitSize) + unitSize/2
+                val cellY = startY + (row * unitSize) + unitSize/2
+                
+                drawIntoCanvas { canvas ->
+                    canvas.nativeCanvas.drawText(
+                        grid.unit,
+                        cellX,
+                        cellY + 3.dp.toPx(), // Slight vertical offset
+                        unitLabelPaint
+                    )
+                }
+            }
+        }
+    }
+    
+    // Phase 3: Fill unit squares progressively (FILLING_UNITS)
+    if (grid.animationPhase == GridPhase.FILLING_UNITS) {
+        for (row in 0 until grid.width) {
+            for (col in 0 until grid.length) {
+                // Determine if this unit should be filled
+                val shouldFill = row < grid.currentRow || 
+                               (row == grid.currentRow && col < grid.currentColumn) ||
+                               (row == grid.currentRow && col == grid.currentColumn && grid.fillProgress > 0f)
+                
+                if (shouldFill) {
+                    val squareX = startX + (col * unitSize)
+                    val squareY = startY + (row * unitSize)
+                    
+                    // For current unit being filled, show partial fill based on fillProgress
+                    val isCurrentUnit = row == grid.currentRow && col == grid.currentColumn
+                    val fillAmount = if (isCurrentUnit) grid.fillProgress else 1f
+                    
+                    if (fillAmount > 0f) {
+                        // Smooth left-to-right fill animation
+                        val fillWidth = unitSize * fillAmount
+                        
+                        drawRect(
+                            color = chalkGreen.copy(alpha = 0.7f),
+                            topLeft = androidx.compose.ui.geometry.Offset(squareX + 1.dp.toPx(), squareY + 1.dp.toPx()),
+                            size = androidx.compose.ui.geometry.Size(fillWidth - 2.dp.toPx(), unitSize - 2.dp.toPx())
+                        )
+                        
+                        // Add subtle border to filled units
+                        if (fillAmount >= 1f) {
+                            drawRect(
+                                color = chalkGreen,
+                                topLeft = androidx.compose.ui.geometry.Offset(squareX, squareY),
+                                size = androidx.compose.ui.geometry.Size(unitSize, unitSize),
+                                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx())
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Show area calculation progress
+        val totalUnits = grid.length * grid.width
+        val filledUnits = grid.currentRow * grid.length + grid.currentColumn + if (grid.fillProgress >= 1f) 1 else 0
+        val progressText = "Área: $filledUnits de $totalUnits ${grid.unit}"
+        
+        drawIntoCanvas { canvas ->
+            canvas.nativeCanvas.drawText(
+                progressText,
+                canvasSize.width / 2f,
+                startY - 10.dp.toPx(),
+                textPaint
+            )
+        }
+    }
+    
+    // Show dimension labels
+    if (grid.showDimensions) {
+        // Length label (bottom)
+        drawIntoCanvas { canvas ->
+            canvas.nativeCanvas.drawText(
+                "${grid.lengthLabel}: ${grid.length} unidades",
+                startX + gridWidth/2,
+                startY + gridHeight + 30.dp.toPx(),
+                textPaint
+            )
+        }
+        
+        // Width label (left side, rotated)
+        drawIntoCanvas { canvas ->
+            canvas.nativeCanvas.save()
+            canvas.nativeCanvas.translate(startX - 25.dp.toPx(), startY + gridHeight/2)
+            canvas.nativeCanvas.rotate(-90f)
+            canvas.nativeCanvas.drawText(
+                "${grid.widthLabel}: ${grid.width} unidades",
+                0f,
+                0f,
+                textPaint
+            )
+            canvas.nativeCanvas.restore()
+        }
+        
+        // Show final area calculation
+        val totalArea = grid.length * grid.width
+        val areaText = "Área total = ${grid.length} × ${grid.width} = $totalArea ${grid.unit}"
+        
+        drawIntoCanvas { canvas ->
+            canvas.nativeCanvas.drawText(
+                areaText,
+                canvasSize.width / 2f,
+                startY + gridHeight + 50.dp.toPx(),
+                textPaint
+            )
         }
     }
 } 
