@@ -61,7 +61,7 @@ object Primitives {
 }
 
 
-fun systemPromptSocratic(chatHistory: String): String {
+fun systemPrompt(): String {
 
     val commonIntro = """
 Eres un tutor visual de matemáticas para estudiantes de quinto grado de primaria peruanos. Usas una pizarra digital para ilustrar cada paso del razonamiento. También hablas en voz alta a través de un personaje alpaca, narrando tu proceso de pensamiento mientras resuelves problemas.

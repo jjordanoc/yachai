@@ -5,9 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,7 +25,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.jjordanoc.yachai.R
-import com.jjordanoc.yachai.ui.Routes
 import com.jjordanoc.yachai.ui.theme.TutorialGreen
 import com.jjordanoc.yachai.ui.theme.TutorialTeal
 import com.jjordanoc.yachai.ui.theme.TutorialGray
@@ -35,9 +32,6 @@ import com.jjordanoc.yachai.ui.theme.White
 import kotlinx.coroutines.delay
 import android.app.Application
 import androidx.compose.foundation.border
-import androidx.compose.ui.draw.clip
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.ui.graphics.graphicsLayer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 
@@ -410,7 +404,7 @@ fun HorizontalTutorialScreen(
             ) {
                     // "Siguiente paso" button
                     Button(
-                        onClick = { viewModel.proceedToNextStep() },
+                        onClick = { viewModel.nextStepButtonHandler() },
                         modifier = Modifier
                             .weight(1f)
                             .widthIn(max = 140.dp)
