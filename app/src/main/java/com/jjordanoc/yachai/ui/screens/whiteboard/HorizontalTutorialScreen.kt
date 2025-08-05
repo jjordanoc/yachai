@@ -9,11 +9,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
+
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -84,7 +87,7 @@ fun HorizontalTutorialScreen(
     )
 ) {
     val configuration = LocalConfiguration.current
-    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
+    // App is always in landscape mode
     val context = LocalContext.current
     
     val uiState by viewModel.uiState.collectAsState()
@@ -410,30 +413,14 @@ fun HorizontalTutorialScreen(
                     .fillMaxSize()
                     .padding(vertical = 8.dp, horizontal = 20.dp)
             ) {
-                // Left navigation button
-                IconButton(
-                    onClick = { 
-                        viewModel.navigateToPreviousMessage()
-                    },
-                    enabled = viewModel.canNavigatePrevious(),
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .size(50.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ChevronLeft,
-                        contentDescription = "Previous",
-                        tint = if (viewModel.canNavigatePrevious()) White else TutorialGray,
-                        modifier = Modifier.size(40.dp)
-                    )
-                }
+
                 
                 // Step sequence indicator (top-right of content area)
                 if (uiState.isInStepSequence) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(top = 16.dp, end = if (isLandscape) 220.dp else 100.dp)
+                            .padding(top = 16.dp, end = 220.dp)
                             .background(
                                 color = TutorialTeal.copy(alpha = 0.8f),
                                 shape = RoundedCornerShape(12.dp)
@@ -456,7 +443,7 @@ fun HorizontalTutorialScreen(
                             .align(Alignment.TopEnd)
                             .padding(
                                 top = if (uiState.isInStepSequence) 56.dp else 16.dp, 
-                                end = if (isLandscape) 220.dp else 100.dp
+                                end = 220.dp
                             )
                             .background(
                                 color = White.copy(alpha = 0.2f),
@@ -477,7 +464,7 @@ fun HorizontalTutorialScreen(
                 LazyColumn(
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .padding(start = 80.dp, end = if (isLandscape) 200.dp else 80.dp)
+                        .padding(start = 80.dp, end = 200.dp)
                         .fillMaxSize(),
                     horizontalAlignment = Alignment.Start,
                     verticalArrangement = Arrangement.Center
@@ -659,33 +646,16 @@ fun HorizontalTutorialScreen(
                     }
                 }
                 
-                // Right navigation button
-                IconButton(
-                    onClick = { 
-                        viewModel.navigateToNextMessage()
-                    },
-                    enabled = viewModel.canNavigateNext(),
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .size(50.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = "Next",
-                        tint = if (viewModel.canNavigateNext()) White else TutorialGray,
-                        modifier = Modifier.size(40.dp)
-                    )
-                }
+
             }
             
             // Animated Alpaca overlayed on bottom right corner of whiteboard
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(4.dp)
                     .size(
-                        width = if (isLandscape) 200.dp else 120.dp,
-                        height = if (isLandscape) 150.dp else 100.dp
+                        width = 200.dp,
+                        height = 150.dp
                     )
             ) {
                 // Determine which image to show based on speaking state from ViewModel
@@ -740,110 +710,96 @@ fun HorizontalTutorialScreen(
                     }
                 }
                 
+                // Control buttons for automatic explanation flow accounting for alpaca width
+                val alpacaWidth = 200.dp // Always landscape mode
+                val availableWidth = LocalConfiguration.current.screenWidthDp.dp - 20.dp - alpacaWidth // Account for padding and alpaca
+                
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier
+                        .width(availableWidth)
+                        .padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Text input field
-                    OutlinedTextField(
-                        value = uiState.textInput,
-                        onValueChange = viewModel::onTextInputChanged,
+                    // "Siguiente paso" button - Primary action
+                    Button(
+                        onClick = { 
+                            // TODO: Implement next step functionality
+                        },
                         modifier = Modifier
                             .weight(1f)
-                            .height(70.dp),
-                        shape = RoundedCornerShape(15.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = TutorialGray,
-                            unfocusedContainerColor = TutorialGray,
+                            .widthIn(max = 140.dp) // Max width for teens
+                            .height(52.dp), // Larger touch target for teens
+                        shape = RoundedCornerShape(16.dp), // More rounded for friendly look
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = TutorialTeal,
+                            contentColor = White,
                             disabledContainerColor = TutorialGray,
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedBorderColor = Color.Transparent,
+                            disabledContentColor = Color.Gray
                         ),
-                        placeholder = {
-                            Text(
-                                text = when (uiState.flowState) {
-                                    TutorialFlowState.INITIAL -> "Describe tu problema de matemáticas..."
-                                    TutorialFlowState.CHATTING -> "Escribe tu respuesta..."
-                                },
-                                color = Color.Gray
-                            )
-                        }
-                    )
-                    
-                    // Image selection button
-                    FloatingActionButton(
-                        onClick = {
-                            when (PackageManager.PERMISSION_GRANTED) {
-                                ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) -> {
-                                    launchImageCropper()
-                                }
-                                else -> {
-                                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                                }
-                            }
-                        },
-                        modifier = Modifier.size(70.dp),
-                        shape = CircleShape,
-                        containerColor = TutorialTeal,
-                        contentColor = White
+                        enabled = uiState.isInStepSequence && uiState.currentStepIndex < uiState.totalSteps - 1
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.AddPhotoAlternate,
-                            contentDescription = "Add Image",
-                            modifier = Modifier.size(24.dp)
+                        Text(
+                            text = if (uiState.isProcessing) "Procesando..." else "Siguiente paso",
+                            fontSize = 15.sp, // Slightly larger for readability
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                            maxLines = 2, // Allow text wrapping if needed
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                     
-                    // Send button
-                    val sendEnabled = uiState.textInput.isNotBlank() || uiState.selectedImageUri != null
-                    FloatingActionButton(
+                    // "Tengo una duda" button
+                    Button(
                         onClick = { 
-                            if (sendEnabled) {
-                                viewModel.onSendText()
-                            }
+                            // TODO: Implement clarification functionality
                         },
-                        modifier = Modifier.size(70.dp),
-                        shape = CircleShape,
-                        containerColor = if (sendEnabled) TutorialTeal else TutorialGray,
-                        contentColor = if (sendEnabled) White else Color.Gray
+                        modifier = Modifier
+                            .weight(1f)
+                            .widthIn(max = 140.dp)
+                            .height(52.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White,
+                            contentColor = TutorialTeal,
+                            disabledContainerColor = TutorialGray,
+                            disabledContentColor = Color.Gray
+                        )
                     ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Send",
-                            modifier = Modifier.size(24.dp)
+                        Text(
+                            text = "Tengo una duda",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                     
-                    // Microphone button
-                    FloatingActionButton(
+                    // "Repetir" button
+                    Button(
                         onClick = { 
-                            if (isListening) {
-                                // Stop listening
-                                speechRecognizer?.stopListening()
-                                isListening = false
-                            } else {
-                                // Start speech recognition
-                                when (PackageManager.PERMISSION_GRANTED) {
-                                    ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) -> {
-                                        startSpeechRecognition()
-                                    }
-                                                                         else -> {
-                                         // Request microphone permission
-                                         micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                     }
-                                }
-                            }
+                            // TODO: Implement replay functionality
                         },
-                        modifier = Modifier.size(70.dp),
-                        shape = CircleShape,
-                        containerColor = if (isListening) MaterialTheme.colorScheme.error else TutorialTeal,
-                        contentColor = White
+                        modifier = Modifier
+                            .weight(1f)
+                            .widthIn(max = 140.dp)
+                            .height(52.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White,
+                            contentColor = Color.Gray,
+                            disabledContainerColor = TutorialGray,
+                            disabledContentColor = Color.LightGray
+                        ),
+                        enabled = uiState.tutorMessage?.isNotBlank() == true
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Mic,
-                            contentDescription = if (isListening) "Stop Recording" else "Start Voice Input",
-                            modifier = Modifier.size(24.dp)
+                        Text(
+                            text = "Repetir",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -904,17 +860,19 @@ private fun DrawScope.drawNumberLine(
     numberLine: WhiteboardItem.AnimatedNumberLine,
     canvasSize: androidx.compose.ui.geometry.Size
 ) {
-    // Chalk colors for authentic chalkboard look
-    val chalkWhite = Color(0xFFF5F5DC) // Slightly off-white like real chalk
-    val chalkRed = Color(0xFFDC143C) // Classic red chalk color
+    // Educational color hierarchy for whiteboard
+    val baseWhite = Color(0xFFFFFBF0) // Level 1: Base objects (main shapes, number lines)
+    val secondaryTeal = Color(0xFF4DB6AC) // Level 2: Secondary elements (grid lines, aux lines)
+    val focusAmber = Color(0xFFFFC107) // Level 3: Focus & highlights (labels, measurements)
+    val criticalYellow = Color(0xFFFFE082) // Level 4: Critical info (final answers, key results)
     
     val textPaint = Paint().apply {
-        color = chalkWhite.toArgb()
+        color = baseWhite.toArgb()
         textSize = 14.dp.toPx()
         textAlign = Paint.Align.CENTER
     }
     val highlightPaint = Paint().apply {
-        color = chalkRed.toArgb()
+        color = criticalYellow.toArgb()
         textSize = 16.dp.toPx()
         textAlign = Paint.Align.CENTER
         isFakeBoldText = true
@@ -940,9 +898,9 @@ private fun DrawScope.drawNumberLine(
     val maxDisplayed = displayedMarks.last()
     val displaySpan = maxDisplayed - minDisplayed
     
-    // Draw main line in chalk white
+    // Draw main line in base white
     drawLine(
-        color = chalkWhite,
+        color = baseWhite,
         start = androidx.compose.ui.geometry.Offset(startX, yPos),
         end = androidx.compose.ui.geometry.Offset(endX, yPos),
         strokeWidth = 2.dp.toPx()
@@ -963,7 +921,7 @@ private fun DrawScope.drawNumberLine(
     for (markValue in displayedMarks) {
         val x = getXForValue(markValue)
         drawLine(
-            color = chalkWhite,
+            color = baseWhite,
             start = androidx.compose.ui.geometry.Offset(x, yPos - tickHeight),
             end = androidx.compose.ui.geometry.Offset(x, yPos + tickHeight),
             strokeWidth = 1.5.dp.toPx()
@@ -982,9 +940,9 @@ private fun DrawScope.drawNumberLine(
     numberLine.highlight.forEach { highlightValue ->
         if (highlightValue in displayedMarks) {
             val x = getXForValue(highlightValue)
-            // Draw a circle for the highlight in red chalk
+            // Draw a circle for the highlight
             drawCircle(
-                color = chalkRed,
+                color = criticalYellow,
                 radius = 8.dp.toPx(),
                 center = androidx.compose.ui.geometry.Offset(x, yPos)
             )
@@ -1328,12 +1286,13 @@ private fun DrawScope.drawBarChart(
     val chartHeight = canvasSize.height * 0.7f
     val baseY = canvasSize.height * 0.85f
     
-    val chalkWhite = Color(0xFFF5F5DC)
-    val chalkBlue = Color(0xFF87CEEB)
-    val chalkRed = Color(0xFFDC143C)
+    // Educational color hierarchy for whiteboard
+    val baseWhite = Color(0xFFFFFBF0) // Level 1: Base objects
+    val secondaryTeal = Color(0xFF4DB6AC) // Level 2: Secondary elements  
+    val focusAmber = Color(0xFFFFC107) // Level 3: Focus & highlights
     
     val textPaint = Paint().apply {
-        color = chalkWhite.toArgb()
+        color = baseWhite.toArgb()
         textSize = 10.dp.toPx()
         textAlign = Paint.Align.CENTER
     }
@@ -1348,7 +1307,7 @@ private fun DrawScope.drawBarChart(
         val barY = baseY - barHeight
         
         // Draw bar
-        val barColor = if (isHighlighted) chalkRed else chalkBlue
+        val barColor = if (isHighlighted) focusAmber else secondaryTeal
         drawRect(
             color = barColor,
             topLeft = androidx.compose.ui.geometry.Offset(barX, barY),
@@ -1393,18 +1352,19 @@ private fun DrawScope.drawPieChart(
     val centerY = canvasSize.height / 2f
     val radius = minOf(centerX, centerY) * 0.7f
     
+    // Educational color hierarchy - soft, varied palette
     val colors = listOf(
-        Color(0xFF87CEEB), // Light blue
-        Color(0xFFFFE4B5), // Light yellow
-        Color(0xFFDC143C), // Red
-        Color(0xFF98FB98), // Light green
-        Color(0xFFDDA0DD), // Plum
-        Color(0xFFF0E68C)  // Khaki
+        Color(0xFF4DB6AC), // Muted teal (Level 2)
+        Color(0xFFB0BEC5), // Soft blue-gray (Level 2)  
+        Color(0xFFFFC107), // Warm amber (Level 3)
+        Color(0xFFFF7043), // Gentle orange (Level 3)
+        Color(0xFF81C784), // Soft green
+        Color(0xFFBA68C8)  // Soft purple
     )
     
-    val chalkWhite = Color(0xFFF5F5DC)
+    val baseWhite = Color(0xFFFFFBF0) // Level 1: Base objects
     val textPaint = Paint().apply {
-        color = chalkWhite.toArgb()
+        color = baseWhite.toArgb()
         textSize = 10.dp.toPx()
         textAlign = Paint.Align.CENTER
     }
@@ -1477,19 +1437,20 @@ private fun DrawScope.drawDotPlot(
     val plotWidth = canvasSize.width * 0.8f
     val plotStartX = canvasSize.width * 0.1f
     
-    val chalkWhite = Color(0xFFF5F5DC)
-    val chalkBlue = Color(0xFF87CEEB)
-    val chalkRed = Color(0xFFDC143C)
+    // Educational color hierarchy for whiteboard
+    val baseWhite = Color(0xFFFFFBF0) // Level 1: Base objects
+    val secondaryTeal = Color(0xFF4DB6AC) // Level 2: Secondary elements  
+    val focusAmber = Color(0xFFFFC107) // Level 3: Focus & highlights
     
     val textPaint = Paint().apply {
-        color = chalkWhite.toArgb()
+        color = baseWhite.toArgb()
         textSize = 10.dp.toPx()
         textAlign = Paint.Align.CENTER
     }
     
     // Draw axis line
     drawLine(
-        color = chalkWhite,
+        color = baseWhite,
         start = androidx.compose.ui.geometry.Offset(plotStartX, baseY),
         end = androidx.compose.ui.geometry.Offset(plotStartX + plotWidth, baseY),
         strokeWidth = 1.dp.toPx()
@@ -1503,7 +1464,7 @@ private fun DrawScope.drawDotPlot(
         
         // Draw tick mark
         drawLine(
-            color = chalkWhite,
+            color = baseWhite,
             start = androidx.compose.ui.geometry.Offset(x, baseY - 5.dp.toPx()),
             end = androidx.compose.ui.geometry.Offset(x, baseY + 5.dp.toPx()),
             strokeWidth = 1.dp.toPx()
@@ -1531,7 +1492,7 @@ private fun DrawScope.drawDotPlot(
             repeat(count) { stackIndex ->
                 val y = baseY - 20.dp.toPx() - (stackIndex * dotRadius * 2.5f)
                 val isHighlighted = highlightedIndices.contains(values.indexOf(value))
-                val dotColor = if (isHighlighted) chalkRed else chalkBlue
+                val dotColor = if (isHighlighted) focusAmber else secondaryTeal
                 
                 drawCircle(
                     color = dotColor,
@@ -1560,11 +1521,11 @@ private fun DrawScope.drawAnimatedRectangle(
     rectangle: WhiteboardItem.AnimatedRectangle,
     canvasSize: androidx.compose.ui.geometry.Size
 ) {
-    // Chalk colors for authentic chalkboard look
-    val chalkWhite = Color(0xFFF5F5DC) // Slightly off-white like real chalk
-    val chalkBlue = Color(0xFF87CEEB)  // Light blue for filled squares
-    val chalkRed = Color(0xFFDC143C)   // Red for dimensions
-    val chalkYellow = Color(0xFFFFE4B5) // Light yellow for highlights
+    // Educational color hierarchy for whiteboard
+    val baseWhite = Color(0xFFFFFBF0) // Level 1: Base objects (main shapes)
+    val secondaryTeal = Color(0xFF4DB6AC) // Level 2: Secondary elements (filled squares)
+    val focusAmber = Color(0xFFFFC107) // Level 3: Focus & highlights (dimensions) 
+    val criticalYellow = Color(0xFFFFE082) // Level 4: Critical info (highlights)
     
     // Calculate the available space for the rectangle
     val padding = 40.dp.toPx()
@@ -1586,13 +1547,13 @@ private fun DrawScope.drawAnimatedRectangle(
     val startY = (canvasSize.height - rectHeight) / 2f + 30.dp.toPx() // Leave space for top labels
     
     val textPaint = Paint().apply {
-        color = chalkWhite.toArgb()
+        color = baseWhite.toArgb()
         textSize = 14.dp.toPx()
         textAlign = Paint.Align.CENTER
     }
     
     val dimensionPaint = Paint().apply {
-        color = chalkRed.toArgb()
+        color = focusAmber.toArgb()
         textSize = 16.dp.toPx()
         textAlign = Paint.Align.CENTER
         isFakeBoldText = true
@@ -1601,7 +1562,7 @@ private fun DrawScope.drawAnimatedRectangle(
     // Phase 1: Always draw rectangle outline (including SETUP phase)
     // Draw the outer rectangle outline
     drawRect(
-        color = chalkWhite,
+        color = baseWhite,
         topLeft = androidx.compose.ui.geometry.Offset(startX, startY),
         size = androidx.compose.ui.geometry.Size(rectWidth, rectHeight),
         style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
@@ -1613,7 +1574,7 @@ private fun DrawScope.drawAnimatedRectangle(
         for (i in 1 until rectangle.length) {
             val x = startX + (i * unitSize)
             drawLine(
-                color = chalkWhite,
+                color = baseWhite,
                 start = androidx.compose.ui.geometry.Offset(x, startY),
                 end = androidx.compose.ui.geometry.Offset(x, startY + rectHeight),
                 strokeWidth = 1.dp.toPx()
@@ -1624,7 +1585,7 @@ private fun DrawScope.drawAnimatedRectangle(
         for (i in 1 until rectangle.width) {
             val y = startY + (i * unitSize)
             drawLine(
-                color = chalkWhite,
+                color = baseWhite,
                 start = androidx.compose.ui.geometry.Offset(startX, y),
                 end = androidx.compose.ui.geometry.Offset(startX + rectWidth, y),
                 strokeWidth = 1.dp.toPx()
@@ -1646,14 +1607,14 @@ private fun DrawScope.drawAnimatedRectangle(
                     
                     // Fill the unit square
                     drawRect(
-                        color = chalkBlue.copy(alpha = 0.6f),
+                        color = secondaryTeal.copy(alpha = 0.6f),
                         topLeft = androidx.compose.ui.geometry.Offset(squareX + 1.dp.toPx(), squareY + 1.dp.toPx()),
                         size = androidx.compose.ui.geometry.Size(unitSize - 2.dp.toPx(), unitSize - 2.dp.toPx())
                     )
                     
                     // Add a small dot in the center to emphasize it's a unit
                     drawCircle(
-                        color = chalkYellow,
+                        color = criticalYellow,
                         radius = 2.dp.toPx(),
                         center = androidx.compose.ui.geometry.Offset(
                             squareX + unitSize/2,
@@ -1754,12 +1715,12 @@ private fun DrawScope.drawAnimatedGrid(
     grid: WhiteboardItem.AnimatedGrid,
     canvasSize: androidx.compose.ui.geometry.Size
 ) {
-    // Chalk colors for authentic chalkboard look
-    val chalkWhite = Color(0xFFF5F5DC) // Slightly off-white like real chalk
-    val chalkBlue = Color(0xFF87CEEB)  // Light blue for filled squares
-    val chalkRed = Color(0xFFDC143C)   // Red for dimensions
-    val chalkYellow = Color(0xFFFFE4B5) // Light yellow for unit labels
-    val chalkGreen = Color(0xFF98FB98)  // Light green for progressive fill
+    // Educational color hierarchy for whiteboard
+    val baseWhite = Color(0xFFFFFBF0) // Level 1: Base objects (grid outline)
+    val secondaryTeal = Color(0xFF4DB6AC) // Level 2: Secondary elements (grid lines)
+    val focusAmber = Color(0xFFFFC107) // Level 3: Focus & highlights (dimensions)
+    val criticalYellow = Color(0xFFFFE082) // Level 4: Critical info (unit labels)
+    val softGreen = Color(0xFF81C784)  // Gentle green for progressive fill
     
     // Calculate the available space for the grid
     val padding = 40.dp.toPx()
@@ -1781,13 +1742,13 @@ private fun DrawScope.drawAnimatedGrid(
     val startY = (canvasSize.height - gridHeight) / 2f + 30.dp.toPx() // Leave space for top labels
     
     val textPaint = Paint().apply {
-        color = chalkWhite.toArgb()
+        color = baseWhite.toArgb()
         textSize = 12.dp.toPx()
         textAlign = Paint.Align.CENTER
     }
     
     val unitLabelPaint = Paint().apply {
-        color = chalkYellow.toArgb()
+        color = criticalYellow.toArgb()
         textSize = 10.dp.toPx()
         textAlign = Paint.Align.CENTER
     }
@@ -1796,7 +1757,7 @@ private fun DrawScope.drawAnimatedGrid(
     if (grid.animationPhase != GridPhase.SETUP) {
         // Draw the outer grid outline
         drawRect(
-            color = chalkWhite,
+            color = baseWhite,
             topLeft = androidx.compose.ui.geometry.Offset(startX, startY),
             size = androidx.compose.ui.geometry.Size(gridWidth, gridHeight),
             style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
@@ -1809,7 +1770,7 @@ private fun DrawScope.drawAnimatedGrid(
         for (i in 1 until grid.length) {
             val x = startX + (i * unitSize)
             drawLine(
-                color = chalkWhite,
+                color = secondaryTeal,
                 start = androidx.compose.ui.geometry.Offset(x, startY),
                 end = androidx.compose.ui.geometry.Offset(x, startY + gridHeight),
                 strokeWidth = 1.dp.toPx()
@@ -1820,7 +1781,7 @@ private fun DrawScope.drawAnimatedGrid(
         for (i in 1 until grid.width) {
             val y = startY + (i * unitSize)
             drawLine(
-                color = chalkWhite,
+                color = secondaryTeal,
                 start = androidx.compose.ui.geometry.Offset(startX, y),
                 end = androidx.compose.ui.geometry.Offset(startX + gridWidth, y),
                 strokeWidth = 1.dp.toPx()
@@ -1867,7 +1828,7 @@ private fun DrawScope.drawAnimatedGrid(
                         val fillWidth = unitSize * fillAmount
                         
                         drawRect(
-                            color = chalkGreen.copy(alpha = 0.7f),
+                            color = softGreen.copy(alpha = 0.7f),
                             topLeft = androidx.compose.ui.geometry.Offset(squareX + 1.dp.toPx(), squareY + 1.dp.toPx()),
                             size = androidx.compose.ui.geometry.Size(fillWidth - 2.dp.toPx(), unitSize - 2.dp.toPx())
                         )
@@ -1875,7 +1836,7 @@ private fun DrawScope.drawAnimatedGrid(
                         // Add subtle border to filled units
                         if (fillAmount >= 1f) {
                             drawRect(
-                                color = chalkGreen,
+                                color = softGreen,
                                 topLeft = androidx.compose.ui.geometry.Offset(squareX, squareY),
                                 size = androidx.compose.ui.geometry.Size(unitSize, unitSize),
                                 style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx())
