@@ -299,131 +299,121 @@ fun ProblemInputScreen(
             }
         }
         
+
         Spacer(modifier = Modifier.height(15.dp))
         
-        // Text input field
-        OutlinedTextField(
-            value = uiState.textInput,
-            onValueChange = { viewModel.onTextInputChanged(it) },
-            label = { Text("Escribe tu problema de matemáticas") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp),
-            minLines = 3,
-            maxLines = 5,
-            enabled = !uiState.isProcessing
-        )
-        
-        Spacer(modifier = Modifier.height(15.dp))
-        
-        // Show selected image if any
-        uiState.selectedImageUri?.let { uri ->
-            Box(modifier = Modifier.padding(bottom = 8.dp)) {
-                Image(
-                    painter = rememberAsyncImagePainter(uri),
-                    contentDescription = "Selected Image",
-                    modifier = Modifier
-                        .height(100.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable {
-                            when (android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                                androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) -> {
-                                    launchImageCropper()
-                                }
-                                else -> {
-                                    cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
-                                }
-                            }
-                        }
-                )
-                IconButton(
-                    onClick = { viewModel.onImageSelected(null) },
-                    modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
-                    colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Black.copy(alpha = 0.5f))
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = "Remove Image", tint = Color.White)
-                }
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(15.dp))
-        
-        // Input area with buttons
-        Row(
-            modifier = Modifier
-                .width(700.dp)
-                .padding(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Input area with image and microphone buttons
+        // Input area with buttons - horizontal layout
+        Row() {
             Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFFEEEEEE).copy(alpha = 0.93f))
-                    .padding(10.dp),
-                horizontalArrangement = Arrangement.End,
+                    .fillMaxWidth()
+                    .background(Color(0xFFEEEEEE), shape = RoundedCornerShape(20.dp))
+                    .padding(horizontal = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(15.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Spacer(modifier = Modifier.weight(1f))
-                
-                // Image upload button
-                IconButton(
-                    onClick = { 
-                        when (android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) -> {
-                                launchImageCropper()
-                            }
-                            else -> {
-                                cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                // Text input field (takes most space)
+                TextField(
+                    value = uiState.textInput,
+                    onValueChange = { viewModel.onTextInputChanged(it) },
+                    label = { Text("Escribe tu problema de matemáticas") },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor   = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor  = Color.Transparent,
+                        focusedIndicatorColor   = Color.Transparent,   // remove underline/border
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor  = Color.Transparent
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(120.dp),
+                    minLines = 3,
+                    maxLines = 5,
+                    enabled = !uiState.isProcessing
+                )
+
+                // Right side buttons column
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(15.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Image upload button with badge
+                    Box {
+                        IconButton(
+                            onClick = {
+                                when (android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                    androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) -> {
+                                        launchImageCropper()
+                                    }
+                                    else -> {
+                                        cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF333333))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AddPhotoAlternate,
+                                contentDescription = "Upload image",
+                                tint = White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        // Badge showing image count
+                        if (uiState.selectedImageUri != null) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .size(20.dp)
+                                    .clip(CircleShape)
+                                    .background(TutorialTeal)
+                            ) {
+                                Text(
+                                    text = "1",
+                                    color = White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.align(Alignment.Center)
+                                )
                             }
                         }
-                    },
-                    modifier = Modifier
-                        .size(50.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF333333))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AddPhotoAlternate,
-                        contentDescription = "Upload image",
-                        tint = White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                
-                Spacer(modifier = Modifier.width(10.dp))
-                
-                // Microphone button
-                IconButton(
-                    onClick = { 
-                        when (android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) -> {
-                                startSpeechRecognition()
+                    }
+
+                    // Microphone button
+                    IconButton(
+                        onClick = {
+                            when (android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) -> {
+                                    startSpeechRecognition()
+                                }
+                                else -> {
+                                    micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                                }
                             }
-                            else -> {
-                                micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .size(50.dp)
-                        .clip(CircleShape)
-                        .background(if (isListening) TutorialTeal else Color(0xFF333333))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Mic,
-                        contentDescription = "Voice input",
-                        tint = White,
-                        modifier = Modifier.size(24.dp)
-                    )
+                        },
+                        modifier = Modifier
+                            .size(50.dp)
+                            .clip(CircleShape)
+                            .background(if (isListening) TutorialTeal else Color(0xFF333333))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Voice input",
+                            tint = White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+
                 }
-            }
-            
             // Send button
             IconButton(
-                onClick = { 
+                onClick = {
                     if (uiState.textInput.isNotBlank() || uiState.selectedImageUri != null) {
                         viewModel.onSendText()
                         // Navigate to tutorial screen after sending
@@ -447,10 +437,12 @@ fun ProblemInputScreen(
                         imageVector = Icons.AutoMirrored.Filled.Send,
                         contentDescription = "Send",
                         tint = White,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
+        }
+
         }
     }
 }

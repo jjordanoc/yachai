@@ -1,4 +1,4 @@
-package com.jjordanoc.yachai.ui.screens.whiteboard
+package com.jjordanoc.yachai.ui.screens
 
 import android.app.Application
 import androidx.compose.animation.core.*
@@ -14,6 +14,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.jjordanoc.yachai.ui.Routes
+import com.jjordanoc.yachai.ui.screens.whiteboard.TutorialViewModel
+import com.jjordanoc.yachai.ui.screens.whiteboard.TutorialViewModelFactory
 
 @Composable
 fun ModelLoadingScreen(

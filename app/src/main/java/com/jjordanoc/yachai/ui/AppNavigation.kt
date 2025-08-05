@@ -9,7 +9,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.jjordanoc.yachai.ui.screens.*
 import com.jjordanoc.yachai.ui.screens.whiteboard.HorizontalTutorialScreen
-import com.jjordanoc.yachai.ui.screens.whiteboard.ModelLoadingScreen
+import com.jjordanoc.yachai.ui.screens.ModelLoadingScreen
 import com.jjordanoc.yachai.ui.screens.whiteboard.ProblemInputScreen
 import com.jjordanoc.yachai.ui.screens.whiteboard.ProblemLoadingScreen
 import com.jjordanoc.yachai.ui.screens.whiteboard.TutorialViewModel
