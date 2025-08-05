@@ -127,13 +127,13 @@ fun HorizontalTutorialScreen(
                         override fun onError(utteranceId: String?) {
                             Log.e(TAG, "TTS error for utterance: $utteranceId")
                             // Signal finished speaking even on error - enables "siguiente paso" button
-                            viewModel.alpacaFinishedSpeaking()
+                            viewModel.ttsFailed()
                         }
 
                         override fun onError(utteranceId: String?, errorCode: Int) {
                             Log.e(TAG, "TTS error for utterance: $utteranceId, code: $errorCode")
                             // Signal finished speaking even on error - enables "siguiente paso" button
-                            viewModel.alpacaFinishedSpeaking()
+                            viewModel.ttsFailed()
                         }
                     })
                     
@@ -141,6 +141,8 @@ fun HorizontalTutorialScreen(
                 }
             } else {
                 Log.e(TAG, "TTS Engine initialization failed with status: $status")
+                // Trigger fallback when TTS fails to initialize
+                viewModel.ttsFailed()
             }
         }
         onDispose {
@@ -152,37 +154,23 @@ fun HorizontalTutorialScreen(
     // --- End of TTS Setup ---
 
     // Trigger speech synchronized with alpaca speaking animation
-    LaunchedEffect(uiState.tutorMessage, ttsInitialized, uiState.flowState, uiState.animationTrigger) {
+    LaunchedEffect(uiState.tutorMessage, ttsInitialized, uiState.animationTrigger) {
         val tutorMessageText = uiState.tutorMessage
         if (tutorMessageText != null && ttsInitialized) {
-            // Check if this is a placeholder/thinking message that shouldn't be spoken
-            val shouldNotSpeak = tutorMessageText.contains("Pensando") || 
-                                tutorMessageText.contains("Estoy leyendo") ||
-                                tutorMessageText.contains("Procesando") ||
-                                tutorMessageText.contains("...")
+            // Small delay to let UI update, then start TTS
+            delay(500)
             
-            if (!shouldNotSpeak) {
-                // Small delay to let UI update, then start TTS
-                delay(500)
-                
-                // Use the tutor message directly for speech
-                val speechText = tutorMessageText
-                
-                Log.d(TAG, "Triggering TTS speech for: '$speechText'")
-                
-                // Create unique utterance ID for tracking
-                val utteranceId = "tutor_message_${System.currentTimeMillis()}"
-                val params = Bundle()
-                params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId)
-                
-                tts?.speak(speechText, TextToSpeech.QUEUE_FLUSH, params, utteranceId)
-            } else {
-                Log.d(TAG, "Skipping TTS for placeholder message: '$tutorMessageText'")
-                // Still trigger alpaca animation for visual feedback even if not speaking
-                viewModel.startAlpacaSpeaking()
-                delay(2000) // Show animation for 2 seconds
-                viewModel.stopAlpacaSpeaking()
-            }
+            // Use the tutor message directly for speech
+            val speechText = tutorMessageText
+            
+            Log.d(TAG, "Triggering TTS speech for: '$speechText'")
+            
+            // Create unique utterance ID for tracking
+            val utteranceId = "tutor_message_${System.currentTimeMillis()}"
+            val params = Bundle()
+            params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId)
+            
+            tts?.speak(speechText, TextToSpeech.QUEUE_FLUSH, params, utteranceId)
         }
     }
     
@@ -225,8 +213,7 @@ fun HorizontalTutorialScreen(
                             horizontalAlignment = Alignment.Start
                         ) {
                             
-                            // Show arithmetic animations (visual content only) when CHATTING
-                            if (uiState.flowState == TutorialFlowState.CHATTING) {
+                            // Show arithmetic animations (visual content only)
                                 // Display number line if present
                                 uiState.currentNumberLine?.let { numberLine ->
                                     Box(
@@ -338,7 +325,6 @@ fun HorizontalTutorialScreen(
                                     )
                                     Spacer(modifier = Modifier.height(16.dp))
                                 }
-                            }
                             
                             // Show error message if needed
                             if (uiState.showConfirmationFailureMessage) {

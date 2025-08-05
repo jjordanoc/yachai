@@ -13,6 +13,7 @@ import kotlinx.serialization.json.Json
 import com.jjordanoc.yachai.utils.TAG
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import com.jjordanoc.yachai.llm.data.Models
 import com.jjordanoc.yachai.llm.data.getLocalPath
 import com.jjordanoc.yachai.utils.SettingsManager
@@ -32,15 +33,12 @@ data class Tuple10<A, B, C, D, E, F, G, H, I, J>(
     val sixth: F, val seventh: G, val eighth: H, val ninth: I, val tenth: J
 )
 
-enum class TutorialFlowState {
-    CHATTING
-}
+// Removed TutorialFlowState enum - no longer needed since we only have one state
 
 data class ChatHistoryEntry(
     val tutorMessage: String,
     val userMessage: String, // Add user input to track the full conversation
     val subject: String,
-    val flowState: TutorialFlowState,
     val numberLine: WhiteboardItem.AnimatedNumberLine? = null,
     val expression: String? = null,
     val rectangle: WhiteboardItem.AnimatedRectangle? = null,
@@ -60,7 +58,6 @@ data class TutorialState(
     val selectedImageUri: Uri? = null,
     val tutorMessage: String? = null,
     val subject: String = "",
-    val flowState: TutorialFlowState = TutorialFlowState.CHATTING,
     val isModelLoading: Boolean = true,
     val isProcessing: Boolean = false,
     val showConfirmationFailureMessage: Boolean = false,
@@ -149,6 +146,14 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
     
     fun stopAlpacaSpeaking() {
         _uiState.update { it.copy(isAlpacaSpeaking = false) }
+    }
+    
+    /**
+     * Fallback method when TTS fails - manually trigger alpaca finished speaking
+     */
+    fun ttsFailed() {
+        Log.w(TAG, "TTS failed - triggering fallback")
+        alpacaFinishedSpeaking()
     }
 
     fun processLlmResponse(jsonString: String) {
@@ -355,7 +360,6 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 tutorMessage = combinedMessage,
                 userMessage = currentState.textInput,
                 subject = currentState.subject,
-                flowState = currentState.flowState,
                 numberLine = currentState.currentNumberLine,
                 expression = currentState.currentExpression,
                 rectangle = currentState.currentRectangle,
@@ -391,7 +395,16 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
         if (currentState.isInStepSequence && currentState.currentStepIndex < currentState.totalSteps - 1) {
             _uiState.update { it.copy(isReadyForNextStep = true, isAlpacaSpeaking = false) }
             Log.d(TAG, "Alpaca finished speaking - next step button enabled")
-            } else {
+            
+            // Auto-progress to next step after a delay
+            viewModelScope.launch {
+                delay(3000) // Wait 3 seconds before auto-progressing
+                if (currentState.isInStepSequence && currentState.currentStepIndex < currentState.totalSteps - 1) {
+                    Log.d(TAG, "Auto-progressing to next step")
+                    advanceToNextStep()
+                }
+            }
+        } else {
             _uiState.update { it.copy(isAlpacaSpeaking = false) }
             Log.d(TAG, "Alpaca finished speaking - no more steps available")
         }
@@ -810,23 +823,22 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
             return
         }
 
-        // Always in CHATTING state now - ProblemInputScreen handles initial input
-        val (systemPrompt, newFlowState, newProblemStatement) = if (currentState.initialProblemStatement.isBlank()) {
+        // Simplified state management - no flow states needed
+        val (systemPrompt, newProblemStatement) = if (currentState.initialProblemStatement.isBlank()) {
             Log.d(TAG, "onSendText with new problem statement. Starting tutorial.")
             // First time input - use as problem statement and start Socratic dialogue
             val socraticPrompt = systemPromptSocratic("") // Default subject initially
-            Triple(socraticPrompt, TutorialFlowState.CHATTING, currentText)
+            Pair(socraticPrompt, currentText)
         } else {
             Log.d(TAG, "onSendText in ongoing conversation.")
             // Ongoing conversation - build history and continue
             val fullConversationHistory = buildConversationHistory(currentState, currentText)
             val socraticPrompt = systemPromptSocratic(fullConversationHistory)
-            Triple(socraticPrompt, TutorialFlowState.CHATTING, currentState.initialProblemStatement)
+            Pair(socraticPrompt, currentState.initialProblemStatement)
         }
 
         _uiState.update { it.copy(
             textInput = "",
-            flowState = newFlowState,
             initialProblemStatement = newProblemStatement,
             tutorMessage = null, // No loading message needed since we go straight to chatting
             isProcessing = true, // Set processing to true when starting to process
@@ -834,7 +846,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
             showConfirmationFailureMessage = false
             // Keep selectedImageUri so it can be displayed in loading screen
         ).also {
-            Log.d(TAG, "State updated for sending text. New flow state: ${it.flowState}")
+            Log.d(TAG, "State updated for sending text.")
         }}
 
         viewModelScope.launch {
@@ -891,7 +903,6 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 selectedImageUri = null,
                 tutorMessage = null,
                 subject = "",
-                flowState = TutorialFlowState.CHATTING,
                 isModelLoading = false, // Keep model loaded
                 isProcessing = false,
                 showConfirmationFailureMessage = false,
@@ -942,7 +953,6 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                         // Show historical content
                         tutorMessage = historyEntry.tutorMessage,
                         subject = historyEntry.subject,
-                        flowState = historyEntry.flowState, // Preserve historical flow state
                         currentNumberLine = historyEntry.numberLine,
                         currentExpression = historyEntry.expression,
                         currentRectangle = historyEntry.rectangle,
@@ -976,7 +986,6 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                         // Show historical content
                         tutorMessage = historyEntry.tutorMessage,
                         subject = historyEntry.subject,
-                        flowState = historyEntry.flowState, // Preserve historical flow state
                         currentNumberLine = historyEntry.numberLine,
                         currentExpression = historyEntry.expression,
                         currentRectangle = historyEntry.rectangle,
@@ -1009,7 +1018,6 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 isViewingHistory = false,
                 tutorMessage = lastHistoryEntry?.tutorMessage,
                 subject = lastHistoryEntry?.subject ?: state.subject,
-                flowState = lastHistoryEntry?.flowState ?: TutorialFlowState.CHATTING, // Restore flow state
                 currentNumberLine = lastHistoryEntry?.numberLine,
                 currentExpression = lastHistoryEntry?.expression,
                 isAlpacaSpeaking = true
