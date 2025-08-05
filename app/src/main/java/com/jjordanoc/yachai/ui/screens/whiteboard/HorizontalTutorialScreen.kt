@@ -378,13 +378,26 @@ fun HorizontalTutorialScreen(
                 val alpacaWidth = 200.dp // Always landscape mode
                 val availableWidth = LocalConfiguration.current.screenWidthDp.dp - 20.dp - alpacaWidth // Account for padding and alpaca
                 
+                // Show status indicator when tutor is speaking
+                if (uiState.isAlpacaSpeaking) {
+                    Text(
+                        text = "El tutor está hablando...",
+                        color = Color.Gray,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
+                    )
+                }
+                
                 Row(
                     modifier = Modifier
                         .width(availableWidth)
                         .padding(horizontal = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // "Siguiente paso" button - Keep as is (this one looks good)
+                    // "Siguiente paso" button
                     Button(
                         onClick = { viewModel.proceedToNextStep() },
                         modifier = Modifier
@@ -398,7 +411,7 @@ fun HorizontalTutorialScreen(
                             disabledContainerColor = TutorialGray,
                             disabledContentColor = Color.Gray
                         ),
-                        enabled = uiState.isInStepSequence && uiState.isReadyForNextStep
+                        enabled = !uiState.isAlpacaSpeaking && uiState.isInStepSequence && uiState.isReadyForNextStep
                     ) {
                         Text(
                             text = if (uiState.isProcessing) "Procesando..." else "Siguiente paso",
@@ -410,8 +423,8 @@ fun HorizontalTutorialScreen(
                         )
                     }
 
-// "Tengo una duda" button - Add border and improve contrast
-                    OutlinedButton(  // Use OutlinedButton instead of Button
+// "Tengo una duda" button
+                    OutlinedButton(
                         onClick = {
                             // TODO: Implement clarification functionality
                         },
@@ -426,7 +439,8 @@ fun HorizontalTutorialScreen(
                             disabledContainerColor = TutorialGray,
                             disabledContentColor = Color.Gray
                         ),
-                        border = BorderStroke(2.dp, TutorialTeal) // Add teal border
+                        border = BorderStroke(2.dp, TutorialTeal),
+                        enabled = !uiState.isAlpacaSpeaking
                     ) {
                         Text(
                             text = "Tengo una duda",
@@ -438,8 +452,8 @@ fun HorizontalTutorialScreen(
                         )
                     }
 
-// "Repetir" button - Better contrast and border
-                    OutlinedButton(  // Use OutlinedButton for consistency
+// "Repetir" button
+                    OutlinedButton(
                         onClick = {
                             viewModel.repeatCurrentStep()
                         },
@@ -450,16 +464,16 @@ fun HorizontalTutorialScreen(
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
                             containerColor = Color.White,
-                            contentColor = Color(0xFF666666), // Darker gray for better contrast
+                            contentColor = Color(0xFF666666),
                             disabledContainerColor = TutorialGray,
                             disabledContentColor = Color.LightGray
                         ),
                         border = BorderStroke(
                             width = 2.dp,
-                            color = if (uiState.tutorMessage?.isNotBlank() == true && !uiState.isAlpacaSpeaking)
+                            color = if (!uiState.isAlpacaSpeaking && uiState.tutorMessage?.isNotBlank() == true)
                                 Color(0xFF666666) else Color.LightGray
                         ),
-                        enabled = uiState.tutorMessage?.isNotBlank() == true && !uiState.isAlpacaSpeaking
+                        enabled = !uiState.isAlpacaSpeaking && uiState.tutorMessage?.isNotBlank() == true
                     ) {
                         Text(
                             text = "Repetir",
