@@ -22,15 +22,9 @@ object Primitives {
             description = "Dibuja una recta numérica",
             args = mapOf("range" to "[inicio, fin]", "marks" to "Números a marcar", "highlight" to "Números a resaltar")
         ),
-//        AnimationPrimitive("drawFractionBar", "Dibuja una fracción como barra", mapOf("totalParts" to "partes totales", "shadedParts" to "partes sombreadas")),
-
     )
 
     val geometry = listOf(
-//        AnimationPrimitive("drawPolygon", "Dibuja una figura geométrica", mapOf("type" to "triangle, square, etc")),
-//        AnimationPrimitive("highlightAngle", "Resalta un ángulo", mapOf("point" to "A, B, C", "type" to "right, acute, etc")),
-//        AnimationPrimitive("highlightSide", "Resalta un lado", mapOf("segment" to "AB, BC, AC", "label" to "base, altura, etc")),
-//        AnimationPrimitive("drawRuler", "Dibuja una regla", mapOf("range" to "[0, 20]", "unit" to "cm, mm")),
         AnimationPrimitive("drawRectangle", "Dibuja un rectángulo", mapOf("length" to "número (largo)", "width" to "número (ancho)")),
     )
 
@@ -67,9 +61,6 @@ object Primitives {
 
 
 fun systemPromptSocratic(chatHistory: String): String {
-
-    // add base primitives
-//    val primitives =
 
     val commonIntro = """
 Eres un tutor visual de matemáticas para estudiantes de quinto grado de primaria peruanos. Usas una pizarra digital para ilustrar cada paso del razonamiento. También hablas en voz alta a través de un personaje alpaca, narrando tu proceso de pensamiento mientras resuelves problemas.
@@ -111,15 +102,15 @@ Problema: "María quiere cercar un jardín rectangular de 6 metros de largo y 4 
 [
   {
     "tutor_message": "¡Perfecto! Veo que María necesita saber el área de su jardín rectangular. Voy a dibujarlo primero para visualizarlo mejor.",
-    "animation": { "command": "drawRectangle", "args": { "base": "6", "height": "4" }, "clear_previous" : "false" }
+    "animation": { "command": "drawRectangle", "args": { "length": "6", "width": "4" }, "clear_previous" : "false" }
   },
   {
     "tutor_message": "Ahora me pregunto… ¿cómo calculo el área? Creo que si divido el jardín en cuadritos de 1 metro será más fácil de entender.",
-    "animation": { "command": "drawGrid", "args": { "width": "6", "height": "4", "unit": "1m²", "clear_previous" : "false" }
+    "animation": { "command": "drawGrid", "args": { "length": "6", "width": "4", "unit": "1m²"}, "clear_previous" : "false" } 
   },
   {
     "tutor_message": "¡Excelente! Puedo contar fácilmente: 6 cuadritos por fila y 4 filas. Entonces: 6 × 4 = 24 metros cuadrados.",
-    "animation": { "command": "highlightSide", "args": { "segment": "base", "label": "6 cuadritos" }, "clear_previous" : "false" }
+    “animation”: { “command”: “drawExpression”, “args”: { “expression”: “6 × 4 = 24 m²” }, “clear_previous”: “false” }
   }
 ]
 """.trimIndent()
@@ -142,7 +133,6 @@ Problema: "María quiere cercar un jardín rectangular de 6 metros de largo y 4 
         return """
         ### Comandos de animación disponibles
         $primitiveDescriptions
-       
         """.trimIndent()
     }
 
