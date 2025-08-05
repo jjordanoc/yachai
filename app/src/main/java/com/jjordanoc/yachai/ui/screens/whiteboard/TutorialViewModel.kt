@@ -32,7 +32,6 @@ data class Tuple10<A, B, C, D, E, F, G, H, I, J>(
 )
 
 enum class TutorialFlowState {
-    INITIAL,
     CHATTING
 }
 
@@ -60,7 +59,7 @@ data class TutorialState(
     val selectedImageUri: Uri? = null,
     val tutorMessage: String? = null,
     val subject: String = "",
-    val flowState: TutorialFlowState = TutorialFlowState.INITIAL,
+    val flowState: TutorialFlowState = TutorialFlowState.CHATTING,
     val isModelLoading: Boolean = true,
     val isProcessing: Boolean = false,
     val showConfirmationFailureMessage: Boolean = false,
@@ -813,19 +812,18 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
             return
         }
 
-        val (systemPrompt, newFlowState, newProblemStatement) = when (currentState.flowState) {
-            TutorialFlowState.INITIAL -> {
-                Log.d(TAG, "onSendText in INITIAL state. Transitioning directly to CHATTING.")
-                // Use the user's input as the problem statement and start Socratic dialogue immediately
-                val socraticPrompt = systemPromptSocratic("") // Default subject initially
-                Triple(socraticPrompt, TutorialFlowState.CHATTING, currentText)
-            }
-            TutorialFlowState.CHATTING -> {
-                Log.d(TAG, "onSendText in CHATTING state.")
-                val fullConversationHistory = buildConversationHistory(currentState, currentText)
-                val socraticPrompt = systemPromptSocratic(fullConversationHistory)
-                Triple(socraticPrompt, TutorialFlowState.CHATTING, currentState.initialProblemStatement)
-            }
+        // Always in CHATTING state now - ProblemInputScreen handles initial input
+        val (systemPrompt, newFlowState, newProblemStatement) = if (currentState.initialProblemStatement.isBlank()) {
+            Log.d(TAG, "onSendText with new problem statement. Starting tutorial.")
+            // First time input - use as problem statement and start Socratic dialogue
+            val socraticPrompt = systemPromptSocratic("") // Default subject initially
+            Triple(socraticPrompt, TutorialFlowState.CHATTING, currentText)
+        } else {
+            Log.d(TAG, "onSendText in ongoing conversation.")
+            // Ongoing conversation - build history and continue
+            val fullConversationHistory = buildConversationHistory(currentState, currentText)
+            val socraticPrompt = systemPromptSocratic(fullConversationHistory)
+            Triple(socraticPrompt, TutorialFlowState.CHATTING, currentState.initialProblemStatement)
         }
 
         _uiState.update { it.copy(
@@ -871,66 +869,6 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                     }
                 }
             )
-        }
-    }
-
-
-    
-    /**
-     * Extracts the subject/topic from the LLM interpretation response
-     */
-    private fun extractSubjectFromResponse(tutorMessage: String): String {
-        return try {
-            // Look for subject patterns in the tutor message
-            val subjectPatterns = listOf(
-                "\"subject\"\\s*:\\s*\"([^\"]+)\"".toRegex(),
-                "\"topic\"\\s*:\\s*\"([^\"]+)\"".toRegex(),
-                "\"problem_type\"\\s*:\\s*\"([^\"]+)\"".toRegex(),
-                "subject:\\s*([^,\\n}]+)".toRegex(),
-                "topic:\\s*([^,\\n}]+)".toRegex(),
-                "problem_type:\\s*([^,\\n}]+)".toRegex()
-            )
-            
-            for (pattern in subjectPatterns) {
-                val match = pattern.find(tutorMessage)
-                if (match != null) {
-                    val subject = match.groupValues[1].trim().replace("\"", "")
-                    Log.d(TAG, "Extracted subject: '$subject' from tutor message")
-                    return subject
-                }
-            }
-            
-            // Fallback: try to infer from common math keywords
-            val mathKeywords = mapOf(
-                "álgebra" to "álgebra",
-                "geometría" to "geometría", 
-                "aritmética" to "aritmética",
-                "cálculo" to "cálculo",
-                "trigonometría" to "trigonometría",
-                "estadística" to "estadística",
-                "probabilidad" to "probabilidad",
-                "fracciones" to "aritmética",
-                "ecuaciones" to "álgebra",
-                "triángulo" to "geometría",
-                "círculo" to "geometría",
-                "derivada" to "cálculo",
-                "integral" to "cálculo"
-            )
-            
-            val lowerMessage = tutorMessage.lowercase()
-            for ((keyword, subject) in mathKeywords) {
-                if (lowerMessage.contains(keyword)) {
-                    Log.d(TAG, "Inferred subject '$subject' from keyword '$keyword'")
-                    return subject
-                }
-            }
-            
-            Log.d(TAG, "Could not extract subject from tutor message, defaulting to 'matemáticas'")
-            "matemáticas" // Default subject
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "Error extracting subject from response", e)
-            "matemáticas" // Default fallback
         }
     }
     

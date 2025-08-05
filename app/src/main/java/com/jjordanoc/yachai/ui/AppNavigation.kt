@@ -1,11 +1,16 @@
 package com.jjordanoc.yachai.ui
 
+import android.app.Application
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.jjordanoc.yachai.ui.screens.*
 import com.jjordanoc.yachai.ui.screens.whiteboard.HorizontalTutorialScreen
+import com.jjordanoc.yachai.ui.screens.whiteboard.TutorialViewModel
+import com.jjordanoc.yachai.ui.screens.whiteboard.TutorialViewModelFactory
 
 object Routes {
     const val SPLASH_SCREEN = "splash"
@@ -17,11 +22,21 @@ object Routes {
     const val WHITEBOARD_SCREEN = "whiteboard"
     const val CHAT_SCREEN = "chat"
     const val HORIZONTAL_TUTORIAL_SCREEN = "horizontal_tutorial"
+    const val PROBLEM_INPUT_SCREEN = "problem_input"
 }
 
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+    
+    // Create shared ViewModel for the input -> tutorial flow
+    val context = LocalContext.current
+    val sharedTutorialViewModel: TutorialViewModel = viewModel(
+        factory = TutorialViewModelFactory(
+            context.applicationContext as Application
+        )
+    )
+    
     NavHost(navController = navController, startDestination = Routes.SPLASH_SCREEN) {
         composable(Routes.SPLASH_SCREEN) {
             SplashScreen(navController = navController)
@@ -34,7 +49,17 @@ fun AppNavigation() {
         }
 
         composable(Routes.HORIZONTAL_TUTORIAL_SCREEN) {
-            HorizontalTutorialScreen(navController = navController)
+            HorizontalTutorialScreen(
+                navController = navController,
+                viewModel = sharedTutorialViewModel
+            )
+        }
+        
+        composable(Routes.PROBLEM_INPUT_SCREEN) {
+            ProblemInputScreen(
+                navController = navController,
+                viewModel = sharedTutorialViewModel
+            )
         }
     }
 }

@@ -8,14 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddPhotoAlternate
-
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Replay
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.automirrored.filled.NavigateNext
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -41,27 +33,13 @@ import com.jjordanoc.yachai.ui.theme.TutorialGray
 import com.jjordanoc.yachai.ui.theme.White
 import kotlinx.coroutines.delay
 import android.app.Application
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import android.Manifest
-import android.content.pm.PackageManager
-import android.widget.Toast
-import androidx.core.content.ContextCompat
-import com.canhub.cropper.CropImageContract
-import com.canhub.cropper.CropImageContractOptions
-import com.canhub.cropper.CropImageOptions
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
-import coil.compose.rememberAsyncImagePainter
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.graphics.graphicsLayer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
-import android.content.Intent
+
 import androidx.compose.runtime.DisposableEffect
 import java.util.Locale
 import android.util.Log
@@ -108,90 +86,10 @@ fun HorizontalTutorialScreen(
         remember { Animatable(0f) }.asState()
     }
     
-    // Image picker setup
-    val cropImageLauncher = rememberLauncherForActivityResult(
-        contract = CropImageContract(),
-        onResult = { result ->
-            if (result.isSuccessful) {
-                viewModel.onImageSelected(result.uriContent)
-            }
-        }
-    )
-
-    fun launchImageCropper() {
-        cropImageLauncher.launch(
-            CropImageContractOptions(
-                uri = null,
-                cropImageOptions = CropImageOptions(
-                    imageSourceIncludeGallery = true,
-                    imageSourceIncludeCamera = true
-                )
-            )
-        )
-    }
-
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                launchImageCropper()
-            } else {
-                Toast.makeText(context, "Camera permission is required", Toast.LENGTH_SHORT).show()
-            }
-        }
-    )
-    
     // --- Text-to-Speech Setup ---
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
     var ttsInitialized by remember { mutableStateOf(false) }
     
-    // --- Speech Recognition Setup ---
-    var speechRecognizer by remember { mutableStateOf<SpeechRecognizer?>(null) }
-    var isListening by remember { mutableStateOf(false) }
-    
-    // Function to start speech recognition
-    fun startSpeechRecognition() {
-        Log.d(TAG, "Attempting to start speech recognition")
-        Log.d(TAG, "Speech recognizer null: ${speechRecognizer == null}")
-        Log.d(TAG, "Recognition available: ${SpeechRecognizer.isRecognitionAvailable(context)}")
-        
-        speechRecognizer?.let { recognizer ->
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-ES") // Spanish language
-                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-                putExtra(RecognizerIntent.EXTRA_PROMPT, "Describe tu problema de matemáticas...")
-                // Enable offline recognition if available
-                putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
-            }
-            recognizer.startListening(intent)
-            Log.d(TAG, "Started speech recognition")
-        } ?: run {
-            Log.w(TAG, "Speech recognizer is null when trying to start recognition")
-            
-            // Try to reinitialize if recognition is now available
-            if (SpeechRecognizer.isRecognitionAvailable(context)) {
-                Log.d(TAG, "Recognition now available, trying to reinitialize...")
-                Toast.makeText(context, "Inicializando reconocimiento de voz...", Toast.LENGTH_SHORT).show()
-                // We can't reinitialize here easily due to scope, so just inform user
-            } else {
-                Toast.makeText(context, "Reconocimiento de voz no disponible. Verifica que Google Speech Services esté instalado.", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-    
-    val micPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                startSpeechRecognition()
-            } else {
-                Toast.makeText(context, "Microphone permission is required", Toast.LENGTH_SHORT).show()
-            }
-        }
-    )
-
     DisposableEffect(context) {
         Log.d(TAG, "Initializing TTS engine.")
         tts = TextToSpeech(context) { status ->
@@ -241,107 +139,6 @@ fun HorizontalTutorialScreen(
             Log.d(TAG, "Shutting down TTS engine.")
             tts?.stop()
             tts?.shutdown()
-        }
-    }
-    
-    // --- Speech Recognition Setup ---
-    DisposableEffect(context) {
-        val isAvailable = SpeechRecognizer.isRecognitionAvailable(context)
-        Log.d(TAG, "Speech recognition available: $isAvailable")
-        
-        if (isAvailable) {
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
-                setRecognitionListener(object : RecognitionListener {
-                    override fun onReadyForSpeech(params: Bundle?) {
-                        Log.d(TAG, "Speech recognition ready")
-                        isListening = true
-                    }
-                    
-                    override fun onBeginningOfSpeech() {
-                        Log.d(TAG, "Speech recognition started")
-                    }
-                    
-                    override fun onRmsChanged(rmsdB: Float) {
-                        // Voice level feedback - could be used for visual feedback
-                    }
-                    
-                    override fun onBufferReceived(buffer: ByteArray?) {
-                        // Audio buffer - not needed for basic implementation
-                    }
-                    
-                    override fun onEndOfSpeech() {
-                        Log.d(TAG, "Speech recognition ended")
-                        isListening = false
-                    }
-                    
-                    override fun onError(error: Int) {
-                        val errorMessage = when (error) {
-                            SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
-                            SpeechRecognizer.ERROR_CLIENT -> "Client side error"
-                            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
-                            SpeechRecognizer.ERROR_NETWORK -> "Network error"
-                            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
-                            SpeechRecognizer.ERROR_NO_MATCH -> "No speech match"
-                            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Recognition service busy"
-                            SpeechRecognizer.ERROR_SERVER -> "Server error"
-                            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input"
-                            else -> "Unknown error: $error"
-                        }
-                        Log.e(TAG, "Speech recognition error: $errorMessage")
-                        isListening = false
-                        if (error != SpeechRecognizer.ERROR_NO_MATCH && error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
-                            Toast.makeText(context, "Error de reconocimiento: $errorMessage", Toast.LENGTH_LONG).show()
-                        } else if (error == SpeechRecognizer.ERROR_NO_MATCH) {
-                            Toast.makeText(context, "No se pudo entender lo que dijiste. Intenta de nuevo.", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                    
-                    override fun onResults(results: Bundle?) {
-                        results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.let { matches ->
-                            if (matches.isNotEmpty()) {
-                                val recognizedText = matches[0]
-                                Log.d(TAG, "Speech recognized: $recognizedText")
-                                viewModel.onTextInputChanged(recognizedText)
-                                isListening = false
-                            }
-                        }
-                    }
-                    
-                    override fun onPartialResults(partialResults: Bundle?) {
-                        // Could be used for real-time text updates
-                    }
-                    
-                    override fun onEvent(eventType: Int, params: Bundle?) {
-                        // Additional events - not needed for basic implementation
-                    }
-                })
-            }
-            Log.d(TAG, "Speech recognizer initialized successfully")
-        } else {
-            Log.w(TAG, "Speech recognition not available on this device")
-            
-            // Try to provide more specific guidance
-            val packageManager = context.packageManager
-            val hasGoogleApp = try {
-                packageManager.getPackageInfo("com.google.android.googlequicksearchbox", 0)
-                true
-            } catch (e: Exception) {
-                false
-            }
-            
-            val message = if (!hasGoogleApp) {
-                "Reconocimiento de voz no disponible. Instala la app de Google desde Play Store."
-            } else {
-                "Reconocimiento de voz no disponible. Verifica que Google Speech Services esté habilitado en Configuración."
-            }
-            
-            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-            Log.w(TAG, "Google app available: $hasGoogleApp")
-        }
-        
-        onDispose {
-            Log.d(TAG, "Cleaning up speech recognizer")
-            speechRecognizer?.destroy()
         }
     }
     // --- End of TTS Setup ---
@@ -469,18 +266,7 @@ fun HorizontalTutorialScreen(
                                                 Column(
                             horizontalAlignment = Alignment.Start
                         ) {
-                            // Show initial lesson content when in INITIAL state
-                            if (uiState.flowState == TutorialFlowState.INITIAL) {
-                                Text(
-                                    text = "¡Hola! Soy tu tutor de matemáticas. Comparte conmigo cualquier problema que tengas y te ayudaré a resolverlo paso a paso.",
-                                    color = White,
-                                    fontSize = 20.sp,
-                                    textAlign = TextAlign.Left,
-                                    lineHeight = 28.sp
-                                )
-                            }
-                            
-                            // Show tutor message and visual content when CHATTING
+                            // Show tutor message and visual content (always CHATTING now)
                             if (uiState.flowState == TutorialFlowState.CHATTING) {
                                 // Show processing message when thinking
                                 if (uiState.isProcessing) {
@@ -670,38 +456,8 @@ fun HorizontalTutorialScreen(
         
         Spacer(modifier = Modifier.height(15.dp))
         
-        // Chat interface - always show (INITIAL and CHATTING states)
+        // Tutorial control buttons
         Column(modifier = Modifier.padding(10.dp)) {
-                // Show selected image if any
-                uiState.selectedImageUri?.let { uri ->
-                    Box(modifier = Modifier.padding(bottom = 8.dp)) {
-                        Image(
-                            painter = rememberAsyncImagePainter(uri),
-                            contentDescription = "Selected Image",
-                            modifier = Modifier
-                                .height(100.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    when (PackageManager.PERMISSION_GRANTED) {
-                                        ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) -> {
-                                            launchImageCropper()
-                                        }
-                                        else -> {
-                                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                                        }
-                                    }
-                                }
-                        )
-                        IconButton(
-                            onClick = { viewModel.onImageSelected(null) },
-                            modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
-                            colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Black.copy(alpha = 0.5f))
-                        ) {
-                            Icon(Icons.Default.Close, contentDescription = "Remove Image", tint = Color.White)
-                        }
-                    }
-                }
-                
                 // Control buttons for automatic explanation flow accounting for alpaca width
                 val alpacaWidth = 200.dp // Always landscape mode
                 val availableWidth = LocalConfiguration.current.screenWidthDp.dp - 20.dp - alpacaWidth // Account for padding and alpaca
