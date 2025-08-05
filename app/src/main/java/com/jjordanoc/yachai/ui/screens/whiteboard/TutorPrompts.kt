@@ -103,15 +103,15 @@ Problema: "María quiere cercar un jardín rectangular de 6 metros de largo y 4 
 [
   {
     "tutor_message": "¡Perfecto! Veo que María necesita saber el área de su jardín rectangular. Voy a dibujarlo primero para visualizarlo mejor.",
-    "animation": { "command": "drawRectangle", "args": { "length": "6", "width": "4" }, "clear_previous" : "false" }
+    "animation": { "command": "drawRectangle", "args": { "length": "6", "width": "4" }, "clear_previous": "false" }
   },
   {
     "tutor_message": "Ahora me pregunto… ¿cómo calculo el área? Creo que si divido el jardín en cuadritos de 1 metro será más fácil de entender.",
-    "animation": { "command": "drawGrid", "args": { "length": "6", "width": "4", "unit": "1m²"}, "clear_previous" : "false" } 
+    "animation": { "command": "drawGrid", "args": { "length": "6", "width": "4", "unit": "1m²" }, "clear_previous": "false" } 
   },
   {
     "tutor_message": "¡Excelente! Puedo contar fácilmente: 6 cuadritos por fila y 4 filas. Entonces: 6 × 4 = 24 metros cuadrados.",
-    “animation”: { “command”: “drawExpression”, “args”: { “expression”: “6 × 4 = 24 m²” }, “clear_previous”: “false” }
+    "animation": { "command": "drawExpression", "args": { "expression": "6 × 4 = 24 m²" }, "clear_previous": "false" }
   }
 ]
 """.trimIndent()

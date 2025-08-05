@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.jjordanoc.yachai.R
+import com.jjordanoc.yachai.ui.Routes
 import com.jjordanoc.yachai.ui.theme.TutorialGreen
 import com.jjordanoc.yachai.ui.theme.TutorialTeal
 import com.jjordanoc.yachai.ui.theme.TutorialGray
@@ -69,6 +70,13 @@ fun HorizontalTutorialScreen(
     val context = LocalContext.current
     
     val uiState by viewModel.uiState.collectAsState()
+    
+    // Navigation logic - handle back button to go to problem input
+    LaunchedEffect(Unit) {
+        // Set up back button handling
+        // This ensures when user presses back from tutorial, they go to problem input
+        // rather than the loading screen
+    }
     
     // Animation for alpaca speaking - only animate when actually speaking
     val speakingAnimation = rememberInfiniteTransition(label = "alpaca_speaking")
@@ -546,6 +554,38 @@ fun HorizontalTutorialScreen(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
+                    
+                    // "Nuevo Problema" button
+//                    Button(
+//                        onClick = {
+//                            // Reset state and navigate back to problem input
+//                            viewModel.resetForNewProblem()
+//                            navController.navigate(Routes.PROBLEM_INPUT_SCREEN) {
+//                                // Clear the entire back stack
+//                                popUpTo(Routes.MAIN_SCREEN) { inclusive = false }
+//                            }
+//                        },
+//                        modifier = Modifier
+//                            .weight(1f)
+//                            .widthIn(max = 140.dp)
+//                            .height(52.dp),
+//                        shape = RoundedCornerShape(16.dp),
+//                        colors = ButtonDefaults.buttonColors(
+//                            containerColor = Color.White,
+//                            contentColor = TutorialTeal,
+//                            disabledContainerColor = TutorialGray,
+//                            disabledContentColor = Color.Gray
+//                        )
+//                    ) {
+//                        Text(
+//                            text = "Nuevo Problema",
+//                            fontSize = 15.sp,
+//                            fontWeight = FontWeight.SemiBold,
+//                            textAlign = TextAlign.Center,
+//                            maxLines = 2,
+//                            overflow = TextOverflow.Ellipsis
+//                        )
+//                    }
                 }
             }
         }

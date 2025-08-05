@@ -39,6 +39,7 @@ import com.canhub.cropper.CropImageContract
 import com.canhub.cropper.CropImageContractOptions
 import com.canhub.cropper.CropImageOptions
 import com.jjordanoc.yachai.R
+import com.jjordanoc.yachai.ui.Routes
 import com.jjordanoc.yachai.ui.theme.TutorialTeal
 import com.jjordanoc.yachai.ui.theme.White
 import com.jjordanoc.yachai.utils.TAG
@@ -54,6 +55,13 @@ fun ProblemInputScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+    
+    // Navigation logic - navigate to loading screen when processing starts
+    LaunchedEffect(uiState.isProcessing) {
+        if (uiState.isProcessing) {
+            navController.navigate(Routes.PROBLEM_LOADING_SCREEN)
+        }
+    }
     
     // Image picker setup
     val cropImageLauncher = rememberLauncherForActivityResult(

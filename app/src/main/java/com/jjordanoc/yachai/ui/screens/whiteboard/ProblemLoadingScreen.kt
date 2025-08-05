@@ -1,14 +1,17 @@
 package com.jjordanoc.yachai.ui.screens.whiteboard
 
 import android.app.Application
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -18,12 +21,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.jjordanoc.yachai.R
+import com.jjordanoc.yachai.ui.Routes
 import com.jjordanoc.yachai.ui.theme.White
 
 @Composable
@@ -37,63 +42,197 @@ fun ProblemLoadingScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     
-    // Use data from ViewModel if available, otherwise show defaults
-    val problemText = if (uiState.textInput.isNotBlank()) uiState.textInput else "Texto del problema"
-    val problemImageUri = uiState.selectedImageUri
-    Column(
+    // Navigation logic - navigate to tutorial screen when processing finishes and we have a tutor message
+    LaunchedEffect(uiState.isProcessing, uiState.tutorMessage) {
+        if (!uiState.isProcessing) {
+            if (uiState.tutorMessage != null) {
+                // Success - navigate to tutorial
+                navController.navigate(Routes.HORIZONTAL_TUTORIAL_SCREEN) {
+                    // Clear the back stack so user can't go back to loading screen
+                    popUpTo(Routes.PROBLEM_LOADING_SCREEN) { inclusive = true }
+                }
+            } else {
+                // Error or no response - go back to problem input
+                navController.popBackStack()
+            }
+        }
+    }
+    
+    // Animated dots for loading
+    val infiniteTransition = rememberInfiniteTransition(label = "dots")
+    val dot1Alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, delayMillis = 0),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dot1"
+    )
+    val dot2Alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, delayMillis = 200),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dot2"
+    )
+    val dot3Alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, delayMillis = 400),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dot3"
+    )
+    
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(White)
-            .padding(30.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .padding(30.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
-            verticalAlignment = Alignment.CenterVertically
+        // Cancel button in top-right
+        Button(
+            onClick = {
+                // Cancel LLM inference and navigate back to problem input
+                viewModel.cancelLlmInference()
+                navController.navigate(Routes.PROBLEM_INPUT_SCREEN) {
+                    // Clear the back stack so user goes directly to problem input
+                    popUpTo(Routes.PROBLEM_INPUT_SCREEN) { inclusive = true }
+                }
+            },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFFFF7B7B)
+            ),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 15.dp)
         ) {
-            // Left side - Alpaca with analysis message
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            Text(
+                text = "Cancelar",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        
+        // Main content centered
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 60.dp), // Space for cancel button
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Alpaca and thinking message
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 // Alpaca image
                 Image(
                     painter = painterResource(id = R.drawable.alpakey),
-                    contentDescription = "Alpaca tutor analyzing",
+                    contentDescription = "Alpaca tutor thinking",
                     modifier = Modifier
-                        .width(250.dp)
-                        .height(166.dp),
+                        .width(200.dp)
+                        .height(133.dp),
                     contentScale = ContentScale.Fit
                 )
                 
-                // Analysis message
-                Text(
-                    text = "Estoy analizando tu problema…",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.Black,
-                    textAlign = TextAlign.Center
-                )
+                // Thinking message with animated dots
+                Column(
+                    horizontalAlignment = Alignment.Start,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(30.dp)
+                    ) {
+                        Text(
+                            text = "Estoy pensando",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.Black
+                        )
+                        
+                        // Animated dots
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(
+                                        color = Color.Black.copy(alpha = dot1Alpha),
+                                        shape = CircleShape
+                                    )
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(
+                                        color = Color.Black.copy(alpha = dot2Alpha),
+                                        shape = CircleShape
+                                    )
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(
+                                        color = Color.Black.copy(alpha = dot3Alpha),
+                                        shape = CircleShape
+                                    )
+                            )
+                        }
+                    }
+                    
+                    Text(
+                        text = "Esto puede tomar de ~2-3 minutos",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.Black
+                    )
+                }
             }
             
-            // Right side - Problem display
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(15.dp),
+            Spacer(modifier = Modifier.height(10.dp))
+            
+            // Problem display section
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(vertical = 15.dp)
             ) {
-                // "Tu problema:" label
-                Text(
-                    text = "Tu problema:",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.Black,
-                    textAlign = TextAlign.Center
-                )
+                // Problem text section
+                Column(
+                    horizontalAlignment = Alignment.Start,
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "Tu problema:",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.Black
+                    )
+                    
+                    // Show problem text if there's an image, otherwise it goes in placeholder
+                    if (uiState.selectedImageUri != null && uiState.textInput.isNotBlank()) {
+                        Text(
+                            text = "\"${uiState.textInput}\"",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.Black,
+                            maxLines = 4,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
                 
-                // Image placeholder or actual image
+                // Image placeholder or content
                 Box(
                     modifier = Modifier
                         .width(312.dp)
@@ -101,30 +240,41 @@ fun ProblemLoadingScreen(
                         .background(
                             color = Color(0xFFD9D9D9),
                             shape = RoundedCornerShape(4.dp)
+                        )
+                        .border(
+                            width = 3.dp,
+                            color = Color.Black,
+                            shape = RoundedCornerShape(4.dp)
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    problemImageUri?.let { uri ->
-                        Image(
-                            painter = rememberAsyncImagePainter(uri),
-                            contentDescription = "Problem image",
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(RoundedCornerShape(4.dp)),
-                            contentScale = ContentScale.Crop
-                        )
+                    when {
+                        // If there's an image, show it
+                        uiState.selectedImageUri != null -> {
+                            Image(
+                                painter = rememberAsyncImagePainter(uiState.selectedImageUri),
+                                contentDescription = "Problem image",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(4.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                        // If there's only text, show it in the placeholder
+                        uiState.textInput.isNotBlank() -> {
+                            Text(
+                                text = "\"${uiState.textInput}\"",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.Black,
+                                textAlign = TextAlign.Center,
+                                maxLines = 4,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
                     }
                 }
-                
-                // Problem text
-                Text(
-                    text = if (uiState.textInput.isNotBlank()) "\"$problemText\"" else "\"Texto del problema\"",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.Black,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.width(312.dp)
-                )
             }
         }
     }

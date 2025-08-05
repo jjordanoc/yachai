@@ -25,6 +25,7 @@ import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardItem
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.RectanglePhase
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.GridPhase
 import androidx.lifecycle.ViewModelProvider
+import com.jjordanoc.yachai.ui.screens.whiteboard.systemPromptSocratic
 
 data class Tuple10<A, B, C, D, E, F, G, H, I, J>(
     val first: A, val second: B, val third: C, val fourth: D, val fifth: E,
@@ -864,6 +865,57 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                         }
                     }
                 }
+            )
+        }
+    }
+    
+    fun cancelLlmInference() {
+        Log.d(TAG, "Cancelling LLM inference")
+        // Stop processing and reset state
+        _uiState.update { it.copy(
+            isProcessing = false,
+            isAlpacaSpeaking = false,
+            tutorMessage = null
+        ) }
+        // Note: Actual LLM cancellation would need to be implemented in LlmHelper
+        // For now, we just reset the UI state
+    }
+    
+    fun resetForNewProblem() {
+        Log.d(TAG, "Resetting for new problem")
+        // Reset all state for a fresh start
+        _uiState.update { 
+            TutorialState(
+                textInput = "",
+                selectedImageUri = null,
+                tutorMessage = null,
+                subject = "",
+                flowState = TutorialFlowState.CHATTING,
+                isModelLoading = false, // Keep model loaded
+                isProcessing = false,
+                showConfirmationFailureMessage = false,
+                initialProblemStatement = "",
+                isAlpacaSpeaking = false,
+                isReadyForNextStep = false,
+                currentNumberLine = null,
+                currentExpression = null,
+                currentRectangle = null,
+                currentGrid = null,
+                animationTrigger = 0L,
+                currentDataTable = null,
+                currentTallyChart = null,
+                currentBarChart = null,
+                currentPieChart = null,
+                currentDotPlot = null,
+                currentDataSummary = null,
+                chatHistory = emptyList(),
+                currentHistoryIndex = -1,
+                isViewingHistory = false,
+                currentStepIndex = 0,
+                totalSteps = 0,
+                pendingSteps = emptyList(),
+                isInStepSequence = false,
+                stepTimer = 0L
             )
         }
     }
