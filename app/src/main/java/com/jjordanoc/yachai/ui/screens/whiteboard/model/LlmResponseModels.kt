@@ -41,16 +41,19 @@ data class AnimationArgs(
     // Rectangle animation arguments
     val length: Int? = null,
     val width: Int? = null,
-    val base: Int? = null,
-    val height: Int? = null,
+    @Serializable(with = LenientStringSerializer::class) val base: String? = null,
+    @Serializable(with = LenientStringSerializer::class) val height: String? = null,
     val lengthLabel: String? = null,
-    val widthLabel: String? = null
+    val widthLabel: String? = null,
+    // Grid arguments  
+    val unit: String? = null
 )
 
 @Serializable
 data class AnimationCommand(
     val command: String,
-    val args: AnimationArgs
+    val args: AnimationArgs,
+    @SerialName("clear_previous") val clearPrevious: Boolean = false
 )
 
 @Serializable
@@ -67,3 +70,12 @@ data class LlmResponse(
     val hint: String? = null,
     val animation: List<AnimationCommand> = emptyList()
 )
+
+@Serializable
+data class TutorialStep(
+    @SerialName("tutor_message") val tutorMessage: String,
+    val animation: AnimationCommand
+)
+
+// New multi-step response format
+typealias MultiStepResponse = List<TutorialStep>

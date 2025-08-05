@@ -10,7 +10,7 @@ object Primitives {
 
     val base = listOf(
         AnimationPrimitive(
-            name = "appendExpression",
+            name = "drawExpression",
             description = "Escribe una expresión matemática en la pizarra",
             args = mapOf("expression" to "Texto de la expresión")
         ),
@@ -103,24 +103,23 @@ Mantén cada paso simple y enfocado en una sola idea visual.
 """
 
     val outputFormat = """
-### Formato obligatorio:
+### Ejemplo: 
+Problema: "María quiere cercar un jardín rectangular de 6 metros de largo y 4 metros de ancho. ¿Cuántos metros cuadrados tiene el jardín?"
 
-**Problema**: "María quiere cercar un jardín rectangular de 6 metros de largo y 4 metros de ancho. ¿Cuántos metros cuadrados tiene el jardín?"
-
-**Respuesta esperada**:
+### Formato obligatorio de respuesta:
 ```json
 [
   {
     "tutor_message": "¡Perfecto! Veo que María necesita saber el área de su jardín rectangular. Voy a dibujarlo primero para visualizarlo mejor.",
-    "animation": { "command": "someCommand", "args": { "base": "6", "height": "4" } }
+    "animation": { "command": "drawRectangle", "args": { "base": "6", "height": "4" }, "clear_previous" : "false" }
   },
   {
     "tutor_message": "Ahora me pregunto… ¿cómo calculo el área? Creo que si divido el jardín en cuadritos de 1 metro será más fácil de entender.",
-    "animation": { "command": "drawGrid", "args": { "width": "6", "height": "4", "unit": "1m²" }
+    "animation": { "command": "drawGrid", "args": { "width": "6", "height": "4", "unit": "1m²", "clear_previous" : "false" }
   },
   {
     "tutor_message": "¡Excelente! Puedo contar fácilmente: 6 cuadritos por fila y 4 filas. Entonces: 6 × 4 = 24 metros cuadrados.",
-    "animation": { "command": "highlightSide", "args": { "segment": "base", "label": "6 cuadritos" } }
+    "animation": { "command": "highlightSide", "args": { "segment": "base", "label": "6 cuadritos" }, "clear_previous" : "false" }
   }
 ]
 """.trimIndent()
@@ -138,13 +137,12 @@ Mantén cada paso simple y enfocado en una sola idea visual.
     fun primitivesWrapper(primitives: List<AnimationPrimitive>) : String {
         val primitiveDescriptions = primitives.joinToString("\n") { primitive ->
             val argsFormatted = primitive.args.entries.joinToString("\n    ") { "- ${it.key}: ${it.value}" }
-            "- `${primitive.name}`\n${primitive.description}\n    $argsFormatted"
+            "- `${primitive.name}`: ${primitive.description}\n    $argsFormatted"
         }
         return """
         ### Comandos de animación disponibles
         $primitiveDescriptions
-        
-        **Nota**: Las animaciones aparecen verticalmente en la pizarra. Usa una por vez.
+       
         """.trimIndent()
     }
 

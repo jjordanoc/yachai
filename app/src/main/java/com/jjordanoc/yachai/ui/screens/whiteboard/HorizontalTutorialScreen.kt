@@ -211,17 +211,23 @@ fun HorizontalTutorialScreen(
                             Log.d(TAG, "TTS finished speaking: $utteranceId")
                             // Stop alpaca speaking animation when TTS ends
                             viewModel.stopAlpacaSpeaking()
+                            // Schedule next step if in step sequence
+                            viewModel.scheduleNextStep()
                         }
 
                         @Deprecated("Deprecated in Java")
                         override fun onError(utteranceId: String?) {
                             Log.e(TAG, "TTS error for utterance: $utteranceId")
                             viewModel.stopAlpacaSpeaking()
+                            // Schedule next step even on error to continue sequence
+                            viewModel.scheduleNextStep()
                         }
 
                         override fun onError(utteranceId: String?, errorCode: Int) {
                             Log.e(TAG, "TTS error for utterance: $utteranceId, code: $errorCode")
                             viewModel.stopAlpacaSpeaking()
+                            // Schedule next step even on error to continue sequence
+                            viewModel.scheduleNextStep()
                         }
                     })
                     
@@ -421,12 +427,36 @@ fun HorizontalTutorialScreen(
                     )
                 }
                 
-                // History indicator (top-right of content area)
-                if (uiState.isViewingHistory) {
+                // Step sequence indicator (top-right of content area)
+                if (uiState.isInStepSequence) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(top = 16.dp, end = if (isLandscape) 220.dp else 100.dp)
+                            .background(
+                                color = TutorialTeal.copy(alpha = 0.8f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+//                        Text(
+//                            text = "Paso ${uiState.currentStepIndex + 1} de ${uiState.totalSteps}",
+//                            color = White,
+//                            fontSize = 12.sp,
+//                            fontWeight = FontWeight.Medium
+//                        )
+                    }
+                }
+                
+                // History indicator (below step indicator if both present)
+                if (uiState.isViewingHistory) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(
+                                top = if (uiState.isInStepSequence) 56.dp else 16.dp, 
+                                end = if (isLandscape) 220.dp else 100.dp
+                            )
                             .background(
                                 color = White.copy(alpha = 0.2f),
                                 shape = RoundedCornerShape(12.dp)
