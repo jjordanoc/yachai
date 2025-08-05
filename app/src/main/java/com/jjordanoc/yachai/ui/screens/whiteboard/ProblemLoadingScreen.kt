@@ -209,56 +209,103 @@ fun ProblemLoadingScreen(
             Spacer(modifier = Modifier.height(10.dp))
             
             // Problem display section
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.padding(vertical = 15.dp)
             ) {
-                // Problem text section
-                Column(
-                    horizontalAlignment = Alignment.Start,
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = "Tu problema:",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.Black
-                    )
-                    
-                    // Show problem text if there's an image, otherwise it goes in placeholder
-                    if (uiState.selectedImageUri != null && uiState.textInput.isNotBlank()) {
-                        Text(
-                            text = "\"${uiState.textInput}\"",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.Black,
-                            maxLines = 4,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
+                Text(
+                    text = "Tu problema:",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.Black
+                )
                 
-                // Image placeholder or content
-                Box(
-                    modifier = Modifier
-                        .width(312.dp)
-                        .height(92.dp)
-                        .background(
-                            color = Color(0xFFD9D9D9),
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                        .border(
-                            width = 3.dp,
-                            color = Color.Black,
-                            shape = RoundedCornerShape(4.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    when {
-                        // If there's an image, show it
-                        uiState.selectedImageUri != null -> {
+                // Conditional layout based on content
+                when {
+                    // Both image and text
+                    uiState.selectedImageUri != null && uiState.textInput.isNotBlank() -> {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Image section (half width)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(120.dp)
+                                    .background(
+                                        color = Color(0xFFD9D9D9),
+                                        shape = RoundedCornerShape(4.dp)
+                                    )
+                                    .border(
+                                        width = 3.dp,
+                                        color = Color.Black,
+                                        shape = RoundedCornerShape(4.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                var imageLoadError by remember { mutableStateOf(false) }
+                                
+                                if (!imageLoadError) {
+                                    Image(
+                                        painter = rememberAsyncImagePainter(
+                                            model = uiState.selectedImageUri,
+                                            onError = {
+                                                Log.e("ProblemLoadingScreen", "Failed to load image: ${uiState.selectedImageUri}")
+                                                imageLoadError = true
+                                            },
+                                            onSuccess = {
+                                                Log.d("ProblemLoadingScreen", "Image loaded successfully: ${uiState.selectedImageUri}")
+                                            }
+                                        ),
+                                        contentDescription = "Problem image",
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(4.dp)),
+                                        contentScale = ContentScale.Fit
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Error cargando imagen",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color.Red,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                            
+                            // Text section (half width)
+                            Text(
+                                text = "\"${uiState.textInput}\"",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.Black,
+                                modifier = Modifier.weight(1f),
+                                maxLines = 4,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                    
+                    // Only image
+                    uiState.selectedImageUri != null -> {
+                        Box(
+                            modifier = Modifier
+                                .width(320.dp)
+                                .height(120.dp)
+                                .background(
+                                    color = Color(0xFFD9D9D9),
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                                .border(
+                                    width = 3.dp,
+                                    color = Color.Black,
+                                    shape = RoundedCornerShape(4.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
                             var imageLoadError by remember { mutableStateOf(false) }
                             
                             if (!imageLoadError) {
@@ -277,10 +324,9 @@ fun ProblemLoadingScreen(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .clip(RoundedCornerShape(4.dp)),
-                                    contentScale = ContentScale.Crop
+                                    contentScale = ContentScale.Fit
                                 )
                             } else {
-                                // Fallback when image fails to load
                                 Text(
                                     text = "Error cargando imagen",
                                     fontSize = 16.sp,
@@ -290,8 +336,25 @@ fun ProblemLoadingScreen(
                                 )
                             }
                         }
-                        // If there's only text, show it in the placeholder
-                        uiState.textInput.isNotBlank() -> {
+                    }
+                    
+                    // Only text
+                    uiState.textInput.isNotBlank() -> {
+                        Box(
+                            modifier = Modifier
+                                .width(320.dp)
+                                .height(120.dp)
+                                .background(
+                                    color = Color(0xFFD9D9D9),
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                                .border(
+                                    width = 3.dp,
+                                    color = Color.Black,
+                                    shape = RoundedCornerShape(4.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Text(
                                 text = "\"${uiState.textInput}\"",
                                 fontSize = 20.sp,
@@ -303,10 +366,27 @@ fun ProblemLoadingScreen(
                                 modifier = Modifier.padding(8.dp)
                             )
                         }
-                        // If neither image nor text, show placeholder
-                        else -> {
+                    }
+                    
+                    // Neither image nor text (shouldn't happen in normal flow)
+                    else -> {
+                        Box(
+                            modifier = Modifier
+                                .width(320.dp)
+                                .height(120.dp)
+                                .background(
+                                    color = Color(0xFFD9D9D9),
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                                .border(
+                                    width = 3.dp,
+                                    color = Color.Black,
+                                    shape = RoundedCornerShape(4.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Text(
-                                text = "Sin imagen seleccionada",
+                                text = "Sin contenido",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color.Gray,
