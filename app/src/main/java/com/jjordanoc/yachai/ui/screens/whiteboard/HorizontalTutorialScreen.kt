@@ -26,7 +26,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontFamily
+
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -475,7 +475,6 @@ fun HorizontalTutorialScreen(
                                     text = "¡Hola! Soy tu tutor de matemáticas. Comparte conmigo cualquier problema que tengas y te ayudaré a resolverlo paso a paso.",
                                     color = White,
                                     fontSize = 20.sp,
-                                    fontFamily = FontFamily.Cursive,
                                     textAlign = TextAlign.Left,
                                     lineHeight = 28.sp
                                 )
@@ -489,7 +488,6 @@ fun HorizontalTutorialScreen(
                                         text = "Resolviendo mentalmente...",
                                         color = White.copy(alpha = 0.8f),
                                         fontSize = 18.sp,
-                                        fontFamily = FontFamily.Cursive,
                                         textAlign = TextAlign.Left,
                                         lineHeight = 24.sp,
                                         modifier = Modifier.fillMaxWidth()
@@ -502,7 +500,6 @@ fun HorizontalTutorialScreen(
                                             text = message,
                                             color = White,
                                             fontSize = 18.sp,
-                                            fontFamily = FontFamily.Cursive,
                                             textAlign = TextAlign.Left,
                                             lineHeight = 24.sp,
                                             modifier = Modifier.fillMaxWidth()
@@ -535,7 +532,6 @@ fun HorizontalTutorialScreen(
                                         text = expression,
                                         color = White,
                                         fontSize = 18.sp,
-                                        fontFamily = FontFamily.Monospace,
                                         textAlign = TextAlign.Left,
                                         modifier = Modifier.fillMaxWidth()
                                     )
@@ -1082,7 +1078,6 @@ private fun TallyChartComponent(
                         text = tallyText.ifEmpty { "—" },
                         color = Color(0xFFFFE4B5), // Light yellow for tally marks
                         fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth(),
                         maxLines = 1,
@@ -1217,7 +1212,6 @@ private fun DataSummaryComponent(
             text = dataSummary.summary,
             color = White,
             fontSize = 15.sp,
-            fontFamily = FontFamily.Cursive,
             lineHeight = 20.sp,
             modifier = Modifier.fillMaxWidth()
         )
