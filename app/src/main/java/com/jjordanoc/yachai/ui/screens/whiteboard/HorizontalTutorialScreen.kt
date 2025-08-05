@@ -176,17 +176,17 @@ fun HorizontalTutorialScreen(
     
 
     
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(White)
             .padding(30.dp)
     ) {
-        // Main whiteboard section with overlayed alpaca
+        // Main whiteboard section
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
+                .fillMaxHeight()
                 .background(
                     color = TutorialGreen,
                     shape = RoundedCornerShape(8.dp)
@@ -203,7 +203,7 @@ fun HorizontalTutorialScreen(
                 LazyColumn(
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .padding(start = 80.dp, end = 200.dp)
+                        .padding(start = 80.dp, end = 220.dp) // Increased end padding to account for alpaca
                         .fillMaxSize(),
                     horizontalAlignment = Alignment.Start,
                     verticalArrangement = Arrangement.Center
@@ -343,7 +343,7 @@ fun HorizontalTutorialScreen(
 
             }
             
-            // Animated Alpaca overlayed on bottom right corner of whiteboard
+            // Animated Alpaca at bottom right corner of whiteboard
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
@@ -366,37 +366,32 @@ fun HorizontalTutorialScreen(
                     contentScale = ContentScale.Fit
                 )
             }
-            
-
         }
         
-        Spacer(modifier = Modifier.height(15.dp))
-        
-        // Tutorial control buttons
-        Column(modifier = Modifier.padding(10.dp)) {
-                // Control buttons for automatic explanation flow accounting for alpaca width
-                val alpacaWidth = 200.dp // Always landscape mode
-                val availableWidth = LocalConfiguration.current.screenWidthDp.dp - 20.dp - alpacaWidth // Account for padding and alpaca
-                
-                // Show status indicator when tutor is speaking
-                if (uiState.isAlpacaSpeaking) {
-                    Text(
-                        text = "El tutor está hablando...",
-                        color = Color.Gray,
-                        fontSize = 12.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp)
-                    )
-                }
-                
-                Row(
+        // Tutorial control buttons at bottom left
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(bottom = 20.dp, start = 20.dp)
+        ) {
+            // Show status indicator when tutor is speaking
+            if (uiState.isAlpacaSpeaking) {
+                Text(
+                    text = "El tutor está hablando...",
+                    color = Color.Gray,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier
-                        .width(availableWidth)
-                        .padding(horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                )
+            }
+            
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                     // "Siguiente paso" button
                     Button(
                         onClick = { viewModel.proceedToNextStep() },
