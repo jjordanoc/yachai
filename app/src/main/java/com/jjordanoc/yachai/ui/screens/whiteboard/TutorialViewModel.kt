@@ -26,10 +26,6 @@ import com.jjordanoc.yachai.ui.screens.whiteboard.animations.MathAnimation
 import com.jjordanoc.yachai.ui.screens.whiteboard.animations.RectangleAnimation
 import androidx.lifecycle.ViewModelProvider
 
-data class Tuple10<A, B, C, D, E, F, G, H, I, J>(
-    val first: A, val second: B, val third: C, val fourth: D, val fifth: E,
-    val sixth: F, val seventh: G, val eighth: H, val ninth: I, val tenth: J
-)
 
 // Removed TutorialFlowState enum - no longer needed since we only have one state
 

@@ -171,17 +171,17 @@ fun HorizontalTutorialScreen(
     
 
     
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(White)
             .padding(30.dp)
     ) {
-        // Main whiteboard section
+        // Main whiteboard section with overlayed alpaca
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight()
+                .weight(1f)
                 .background(
                     color = TutorialGreen,
                     shape = RoundedCornerShape(8.dp)
@@ -198,7 +198,7 @@ fun HorizontalTutorialScreen(
                 LazyColumn(
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .padding(start = 80.dp, end = 220.dp) // Increased end padding to account for alpaca
+                        .padding(start = 80.dp, end = 200.dp)
                         .fillMaxSize(),
                     horizontalAlignment = Alignment.Start,
                     verticalArrangement = Arrangement.Center
@@ -378,12 +378,10 @@ fun HorizontalTutorialScreen(
             }
         }
         
-        // Tutorial control buttons at bottom left
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(bottom = 20.dp, start = 20.dp)
-        ) {
+        Spacer(modifier = Modifier.height(15.dp))
+        
+        // Tutorial control buttons
+        Column(modifier = Modifier.padding(10.dp)) {
             // Show status indicator when tutor is speaking
             if (uiState.isAlpacaSpeaking) {
                 Text(
@@ -397,8 +395,13 @@ fun HorizontalTutorialScreen(
                 )
             }
             
+            // Calculate available width for buttons (accounting for alpaca space)
+            val alpacaWidth = 200.dp
+            val availableWidth = LocalConfiguration.current.screenWidthDp.dp - 60.dp - alpacaWidth // Account for padding and alpaca
+            
             Row(
                 modifier = Modifier
+                    .width(availableWidth)
                     .padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
