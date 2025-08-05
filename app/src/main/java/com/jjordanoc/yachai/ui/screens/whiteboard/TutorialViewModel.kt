@@ -66,6 +66,7 @@ data class TutorialState(
     val showConfirmationFailureMessage: Boolean = false,
     val initialProblemStatement: String = "",
     val isAlpacaSpeaking: Boolean = false,
+    val isReadyForNextStep: Boolean = false, // True when alpaca finished speaking and user can proceed
     val currentNumberLine: WhiteboardItem.AnimatedNumberLine? = null,
     val currentExpression: String? = null,
     val currentRectangle: WhiteboardItem.AnimatedRectangle? = null,
@@ -203,10 +204,10 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
         val endIndex = if (jsonString.contains(']')) jsonString.lastIndexOf(']') else jsonString.lastIndexOf('}')
         
         return if (startIndex != -1 && endIndex > startIndex) {
-            jsonString.substring(startIndex, endIndex + 1)
-        } else {
+                jsonString.substring(startIndex, endIndex + 1)
+            } else {
             Log.w(TAG, "Could not find valid JSON in response. Trying to parse as is.")
-            jsonString
+                jsonString
         }
     }
 
@@ -233,6 +234,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 totalSteps = steps.size,
                 isInStepSequence = true,
                 isProcessing = false,
+                isReadyForNextStep = false, // Start with button disabled
                 subject = extractedSubject,
                 currentHistoryIndex = -1,
                 isViewingHistory = false
@@ -244,8 +246,8 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun processCurrentStep() {
-        val currentState = _uiState.value
-        
+            val currentState = _uiState.value
+
         if (!currentState.isInStepSequence || 
             currentState.currentStepIndex >= currentState.pendingSteps.size) {
             Log.d(TAG, "No more steps to process or not in step sequence")
@@ -296,6 +298,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
             state.copy(
                 tutorMessage = currentStep.tutorMessage,
                 isAlpacaSpeaking = true,
+                isReadyForNextStep = false, // Disable next step button until alpaca finishes speaking
                 currentNumberLine = animationResult.first,
                 currentExpression = animationResult.second,
                 currentRectangle = animationResult.third,
@@ -384,32 +387,67 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
         Log.d(TAG, "Step sequence completed. Added to chat history.")
     }
 
-    fun scheduleNextStep(delayMs: Long = 5000L) {
+    fun alpacaFinishedSpeaking() {
         val currentState = _uiState.value
         
-        // Only schedule if we're in a step sequence and not at the last step
-        if (!currentState.isInStepSequence) {
-            Log.d(TAG, "Not in step sequence, skipping scheduling")
+        // Only enable next step if we're in a step sequence and not at the last step
+        if (currentState.isInStepSequence && currentState.currentStepIndex < currentState.totalSteps - 1) {
+            _uiState.update { it.copy(isReadyForNextStep = true, isAlpacaSpeaking = false) }
+            Log.d(TAG, "Alpaca finished speaking - next step button enabled")
+            } else {
+            _uiState.update { it.copy(isAlpacaSpeaking = false) }
+            Log.d(TAG, "Alpaca finished speaking - no more steps available")
+        }
+    }
+
+    fun proceedToNextStep() {
+        val currentState = _uiState.value
+        
+        if (!currentState.isInStepSequence || !currentState.isReadyForNextStep) {
+            Log.d(TAG, "Cannot proceed to next step - not ready")
             return
         }
         
         if (currentState.currentStepIndex >= currentState.totalSteps - 1) {
-            Log.d(TAG, "At last step, no more steps to schedule")
+            Log.d(TAG, "Cannot proceed - already at last step")
             return
         }
         
-        Log.d(TAG, "Scheduling next step in ${delayMs}ms")
+        // Reset ready state and proceed to next step
+        _uiState.update { it.copy(isReadyForNextStep = false) }
+        advanceToNextStep()
+        Log.d(TAG, "Manually proceeding to next step")
+    }
+
+    fun repeatCurrentStep() {
+        val currentState = _uiState.value
         
-        viewModelScope.launch {
-            kotlinx.coroutines.delay(delayMs)
-            
-            // Double-check we're still in step sequence (user might have navigated away)
-            if (_uiState.value.isInStepSequence) {
-                advanceToNextStep()
-            } else {
-                Log.d(TAG, "Step sequence was cancelled during delay")
-            }
+        // Can repeat if we have a current tutor message
+        if (currentState.tutorMessage.isNullOrBlank()) {
+            Log.d(TAG, "Cannot repeat - no current message")
+            return
         }
+        
+        Log.d(TAG, "Repeating current step: ${currentState.tutorMessage}")
+        
+        // Trigger animation redraw and start alpaca speaking again
+        val animationTrigger = System.currentTimeMillis()
+        
+        _uiState.update { state ->
+            state.copy(
+                isAlpacaSpeaking = true,
+                isReadyForNextStep = false, // Disable next step until repeat finishes
+                animationTrigger = animationTrigger // Trigger animation redraw
+            )
+        }
+        
+        Log.d(TAG, "Current step repeat initiated - animations will redraw and TTS will restart")
+    }
+
+    @Deprecated("Use alpacaFinishedSpeaking() for manual progression")
+    fun scheduleNextStep(delayMs: Long = 5000L) {
+        // Keep for backward compatibility but prefer manual progression
+        alpacaFinishedSpeaking()
     }
 
     // Manual step control functions
@@ -487,15 +525,15 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 }
             }
 
-            "appendExpression" -> {
-                command.args.expression?.let { expression ->
-                    Log.d(TAG, "appendExpression command found with expression: $expression")
-                    newExpression = expression
-                }
-            }
+                    "appendExpression" -> {
+                        command.args.expression?.let { expression ->
+                            Log.d(TAG, "appendExpression command found with expression: $expression")
+                            newExpression = expression
+                        }
+                    }
 
-            "drawRectangle" -> {
-                Log.d(TAG, "drawRectangle command found with args: ${command.args}")
+                    "drawRectangle" -> {
+                        Log.d(TAG, "drawRectangle command found with args: ${command.args}")
                 
                 // Handle new string-based base/height parameters
                 val baseStr = command.args.base
@@ -520,17 +558,17 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 
                 val lengthLabel = command.args.lengthLabel ?: "base"
                 val widthLabel = command.args.widthLabel ?: "altura"
-                
-                if (length != null && width != null && length > 0 && width > 0) {
-                    newRectangle = WhiteboardItem.AnimatedRectangle(
-                        length = length,
-                        width = width,
-                        lengthLabel = lengthLabel,
-                        widthLabel = widthLabel,
-                        animationPhase = RectanglePhase.SETUP
-                    )
-                    Log.d(TAG, "Created rectangle: length=$length, width=$width")
-                } else {
+                        
+                        if (length != null && width != null && length > 0 && width > 0) {
+                            newRectangle = WhiteboardItem.AnimatedRectangle(
+                                length = length,
+                                width = width,
+                                lengthLabel = lengthLabel,
+                                widthLabel = widthLabel,
+                                animationPhase = RectanglePhase.SETUP
+                            )
+                            Log.d(TAG, "Created rectangle: length=$length, width=$width")
+                        } else {
                     Log.w(TAG, "Invalid arguments for drawRectangle: base=$baseStr, height=$heightStr")
                 }
             }
@@ -638,115 +676,115 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 }
             }
 
-            "updateRectangle" -> {
-                Log.d(TAG, "updateRectangle command found")
-                if (newRectangle != null) {
-                    val nextPhase = when (newRectangle.animationPhase) {
-                        RectanglePhase.SETUP -> RectanglePhase.VERTICAL_LINES
-                        RectanglePhase.VERTICAL_LINES -> RectanglePhase.FILLING_ROWS
-                        RectanglePhase.FILLING_ROWS -> {
-                            val nextRow = if (newRectangle.currentColumn >= newRectangle.length - 1) {
-                                newRectangle.currentRow + 1
-                            } else {
-                                newRectangle.currentRow
-                            }
-                            val nextColumn = if (newRectangle.currentColumn >= newRectangle.length - 1) {
-                                0
-                            } else {
-                                newRectangle.currentColumn + 1
+                    "updateRectangle" -> {
+                        Log.d(TAG, "updateRectangle command found")
+                        if (newRectangle != null) {
+                            val nextPhase = when (newRectangle.animationPhase) {
+                                RectanglePhase.SETUP -> RectanglePhase.VERTICAL_LINES
+                                RectanglePhase.VERTICAL_LINES -> RectanglePhase.FILLING_ROWS
+                                RectanglePhase.FILLING_ROWS -> {
+                                    val nextRow = if (newRectangle.currentColumn >= newRectangle.length - 1) {
+                                        newRectangle.currentRow + 1
+                                    } else {
+                                        newRectangle.currentRow
+                                    }
+                                    val nextColumn = if (newRectangle.currentColumn >= newRectangle.length - 1) {
+                                        0
+                                    } else {
+                                        newRectangle.currentColumn + 1
+                                    }
+                                    
+                                    newRectangle = newRectangle.copy(
+                                        currentRow = nextRow,
+                                        currentColumn = nextColumn
+                                    )
+                                    RectanglePhase.FILLING_ROWS
+                                }
                             }
                             
-                            newRectangle = newRectangle.copy(
-                                currentRow = nextRow,
-                                currentColumn = nextColumn
-                            )
-                            RectanglePhase.FILLING_ROWS
+                            if (newRectangle.animationPhase != RectanglePhase.FILLING_ROWS) {
+                                newRectangle = newRectangle.copy(animationPhase = nextPhase)
+                            }
+                            
+                    Log.d(TAG, "Updated rectangle phase: $nextPhase")
                         }
                     }
                     
-                    if (newRectangle.animationPhase != RectanglePhase.FILLING_ROWS) {
-                        newRectangle = newRectangle.copy(animationPhase = nextPhase)
-                    }
-                    
-                    Log.d(TAG, "Updated rectangle phase: $nextPhase")
-                }
-            }
-
-            // Data visualization commands
-            "drawTable" -> {
-                command.args.headers?.let { headers ->
-                    command.args.rows?.let { rows ->
-                        Log.d(TAG, "drawTable command found with ${headers.size} headers and ${rows.size} rows")
+                    // Data visualization commands
+                    "drawTable" -> {
+                        command.args.headers?.let { headers ->
+                            command.args.rows?.let { rows ->
+                                Log.d(TAG, "drawTable command found with ${headers.size} headers and ${rows.size} rows")
                         newDataTable = WhiteboardItem.DataTable(headers = headers, rows = rows)
+                            }
+                        }
                     }
-                }
-            }
 
-            "drawTallyChart" -> {
-                command.args.categories?.let { categories ->
-                    command.args.counts?.let { counts ->
-                        Log.d(TAG, "drawTallyChart command found with ${categories.size} categories")
+                    "drawTallyChart" -> {
+                        command.args.categories?.let { categories ->
+                            command.args.counts?.let { counts ->
+                                Log.d(TAG, "drawTallyChart command found with ${categories.size} categories")
                         newTallyChart = WhiteboardItem.TallyChart(categories = categories, counts = counts)
+                            }
+                        }
                     }
-                }
-            }
 
-            "drawBarChart" -> {
-                command.args.labels?.let { labels ->
-                    command.args.values?.let { values ->
-                        Log.d(TAG, "drawBarChart command found with ${labels.size} bars")
+                    "drawBarChart" -> {
+                        command.args.labels?.let { labels ->
+                            command.args.values?.let { values ->
+                                Log.d(TAG, "drawBarChart command found with ${labels.size} bars")
                         newBarChart = WhiteboardItem.BarChart(labels = labels, values = values)
+                            }
+                        }
                     }
-                }
-            }
 
-            "drawPieChart" -> {
-                command.args.labels?.let { labels ->
-                    command.args.values?.let { values ->
-                        Log.d(TAG, "drawPieChart command found with ${labels.size} slices")
+                    "drawPieChart" -> {
+                        command.args.labels?.let { labels ->
+                            command.args.values?.let { values ->
+                                Log.d(TAG, "drawPieChart command found with ${labels.size} slices")
                         newPieChart = WhiteboardItem.PieChart(labels = labels, values = values)
+                            }
+                        }
                     }
-                }
-            }
 
-            "drawDotPlot" -> {
-                command.args.values?.let { values ->
-                    val min = command.args.min ?: values.minOrNull() ?: 0
-                    val max = command.args.max ?: values.maxOrNull() ?: 10
-                    Log.d(TAG, "drawDotPlot command found with ${values.size} values")
+                    "drawDotPlot" -> {
+                        command.args.values?.let { values ->
+                            val min = command.args.min ?: values.minOrNull() ?: 0
+                            val max = command.args.max ?: values.maxOrNull() ?: 10
+                            Log.d(TAG, "drawDotPlot command found with ${values.size} values")
                     newDotPlot = WhiteboardItem.DotPlot(values = values, min = min, max = max)
                 }
             }
 
-            "highlightData" -> {
-                command.args.index?.let { index ->
-                    when (command.args.type) {
-                        "bar" -> newBarChart = newBarChart?.copy(highlightedIndex = index)
-                        "slice" -> newPieChart = newPieChart?.copy(highlightedIndex = index)
-                        "dot" -> newDotPlot = newDotPlot?.copy(highlightedIndices = listOf(index))
+                    "highlightData" -> {
+                        command.args.index?.let { index ->
+                            when (command.args.type) {
+                                "bar" -> newBarChart = newBarChart?.copy(highlightedIndex = index)
+                                "slice" -> newPieChart = newPieChart?.copy(highlightedIndex = index)
+                                "dot" -> newDotPlot = newDotPlot?.copy(highlightedIndices = listOf(index))
+                            }
+                            Log.d(TAG, "highlightData command: highlighted ${command.args.type} at index $index")
+                        }
                     }
-                    Log.d(TAG, "highlightData command: highlighted ${command.args.type} at index $index")
-                }
-            }
 
-            "appendDataSummary" -> {
-                command.args.summary?.let { summary ->
-                    Log.d(TAG, "appendDataSummary command found: $summary")
-                    newDataSummary = WhiteboardItem.DataSummary(
-                        summary = summary,
-                        meanValue = command.args.value,
-                        rangeMin = command.args.min,
-                        rangeMax = command.args.max
-                    )
-                }
-            }
+                    "appendDataSummary" -> {
+                        command.args.summary?.let { summary ->
+                            Log.d(TAG, "appendDataSummary command found: $summary")
+                            newDataSummary = WhiteboardItem.DataSummary(
+                                summary = summary,
+                                meanValue = command.args.value,
+                                rangeMin = command.args.min,
+                                rangeMax = command.args.max
+                            )
+                        }
+                    }
 
-            "drawMeanLine", "showDataRange" -> {
-                Log.d(TAG, "${command.command} command processed")
-            }
+                    "drawMeanLine", "showDataRange" -> {
+                        Log.d(TAG, "${command.command} command processed")
+                    }
 
-            else -> {
-                Log.w(TAG, "Unknown animation command: ${command.command}")
+                    else -> {
+                        Log.w(TAG, "Unknown animation command: ${command.command}")
             }
         }
 

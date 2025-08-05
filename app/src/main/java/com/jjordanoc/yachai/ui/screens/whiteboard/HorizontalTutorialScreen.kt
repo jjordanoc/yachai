@@ -213,25 +213,21 @@ fun HorizontalTutorialScreen(
 
                         override fun onDone(utteranceId: String?) {
                             Log.d(TAG, "TTS finished speaking: $utteranceId")
-                            // Stop alpaca speaking animation when TTS ends
-                            viewModel.stopAlpacaSpeaking()
-                            // Schedule next step if in step sequence
-                            viewModel.scheduleNextStep()
+                            // Signal alpaca finished speaking - enables "siguiente paso" button
+                            viewModel.alpacaFinishedSpeaking()
                         }
 
                         @Deprecated("Deprecated in Java")
                         override fun onError(utteranceId: String?) {
                             Log.e(TAG, "TTS error for utterance: $utteranceId")
-                            viewModel.stopAlpacaSpeaking()
-                            // Schedule next step even on error to continue sequence
-                            viewModel.scheduleNextStep()
+                            // Signal finished speaking even on error - enables "siguiente paso" button
+                            viewModel.alpacaFinishedSpeaking()
                         }
 
                         override fun onError(utteranceId: String?, errorCode: Int) {
                             Log.e(TAG, "TTS error for utterance: $utteranceId, code: $errorCode")
-                            viewModel.stopAlpacaSpeaking()
-                            // Schedule next step even on error to continue sequence
-                            viewModel.scheduleNextStep()
+                            // Signal finished speaking even on error - enables "siguiente paso" button
+                            viewModel.alpacaFinishedSpeaking()
                         }
                     })
                     
@@ -351,7 +347,7 @@ fun HorizontalTutorialScreen(
     // --- End of TTS Setup ---
 
     // Trigger speech synchronized with alpaca speaking animation
-    LaunchedEffect(uiState.tutorMessage, ttsInitialized, uiState.flowState) {
+    LaunchedEffect(uiState.tutorMessage, ttsInitialized, uiState.flowState, uiState.animationTrigger) {
         val tutorMessageText = uiState.tutorMessage
         if (tutorMessageText != null && ttsInitialized) {
             // Check if this is a placeholder/thinking message that shouldn't be spoken
@@ -723,7 +719,7 @@ fun HorizontalTutorialScreen(
                     // "Siguiente paso" button - Primary action
                     Button(
                         onClick = { 
-                            // TODO: Implement next step functionality
+                            viewModel.proceedToNextStep()
                         },
                         modifier = Modifier
                             .weight(1f)
@@ -736,7 +732,7 @@ fun HorizontalTutorialScreen(
                             disabledContainerColor = TutorialGray,
                             disabledContentColor = Color.Gray
                         ),
-                        enabled = uiState.isInStepSequence && uiState.currentStepIndex < uiState.totalSteps - 1
+                        enabled = uiState.isInStepSequence && uiState.isReadyForNextStep
                     ) {
                         Text(
                             text = if (uiState.isProcessing) "Procesando..." else "Siguiente paso",
@@ -778,7 +774,7 @@ fun HorizontalTutorialScreen(
                     // "Repetir" button
                     Button(
                         onClick = { 
-                            // TODO: Implement replay functionality
+                            viewModel.repeatCurrentStep()
                         },
                         modifier = Modifier
                             .weight(1f)
@@ -791,7 +787,7 @@ fun HorizontalTutorialScreen(
                             disabledContainerColor = TutorialGray,
                             disabledContentColor = Color.LightGray
                         ),
-                        enabled = uiState.tutorMessage?.isNotBlank() == true
+                        enabled = uiState.tutorMessage?.isNotBlank() == true && !uiState.isAlpacaSpeaking
                     ) {
                         Text(
                             text = "Repetir",
