@@ -210,28 +210,6 @@ fun HorizontalTutorialScreen(
                     .fillMaxSize()
                     .padding(vertical = 8.dp, horizontal = 20.dp)
             ) {
-
-                
-                // Step sequence indicator (top-right of content area)
-                if (uiState.isInStepSequence) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 16.dp, end = 220.dp)
-                            .background(
-                                color = TutorialTeal.copy(alpha = 0.8f),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-//                        Text(
-//                            text = "Paso ${uiState.currentStepIndex + 1} de ${uiState.totalSteps}",
-//                            color = White,
-//                            fontSize = 12.sp,
-//                            fontWeight = FontWeight.Medium
-//                        )
-                    }
-                }
                 
                 // History indicator (below step indicator if both present)
                 if (uiState.isViewingHistory) {
@@ -270,34 +248,6 @@ fun HorizontalTutorialScreen(
                                                 Column(
                             horizontalAlignment = Alignment.Start
                         ) {
-                            // Show tutor message and visual content (always CHATTING now)
-                            if (uiState.flowState == TutorialFlowState.CHATTING) {
-                                // Show processing message when thinking
-                                if (uiState.isProcessing) {
-                                    Text(
-                                        text = "Resolviendo mentalmente...",
-                                        color = White.copy(alpha = 0.8f),
-                                        fontSize = 18.sp,
-                                        textAlign = TextAlign.Left,
-                                        lineHeight = 24.sp,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                } else {
-                                    // Show the actual tutor message when not processing
-                                    uiState.tutorMessage?.let { message ->
-                                        Text(
-                                            text = message,
-                                            color = White,
-                                            fontSize = 18.sp,
-                                            textAlign = TextAlign.Left,
-                                            lineHeight = 24.sp,
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                    }
-                                }
-                            }
                             
                             // Show arithmetic animations (visual content only) when CHATTING
                             if (uiState.flowState == TutorialFlowState.CHATTING) {
@@ -472,16 +422,14 @@ fun HorizontalTutorialScreen(
                         .padding(horizontal = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // "Siguiente paso" button - Primary action
+                    // "Siguiente paso" button - Keep as is (this one looks good)
                     Button(
-                        onClick = { 
-                            viewModel.proceedToNextStep()
-                        },
+                        onClick = { viewModel.proceedToNextStep() },
                         modifier = Modifier
                             .weight(1f)
-                            .widthIn(max = 140.dp) // Max width for teens
-                            .height(52.dp), // Larger touch target for teens
-                        shape = RoundedCornerShape(16.dp), // More rounded for friendly look
+                            .widthIn(max = 140.dp)
+                            .height(52.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = TutorialTeal,
                             contentColor = White,
@@ -492,17 +440,17 @@ fun HorizontalTutorialScreen(
                     ) {
                         Text(
                             text = if (uiState.isProcessing) "Procesando..." else "Siguiente paso",
-                            fontSize = 15.sp, // Slightly larger for readability
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
                             textAlign = TextAlign.Center,
-                            maxLines = 2, // Allow text wrapping if needed
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    
-                    // "Tengo una duda" button
-                    Button(
-                        onClick = { 
+
+// "Tengo una duda" button - Add border and improve contrast
+                    OutlinedButton(  // Use OutlinedButton instead of Button
+                        onClick = {
                             // TODO: Implement clarification functionality
                         },
                         modifier = Modifier
@@ -510,12 +458,13 @@ fun HorizontalTutorialScreen(
                             .widthIn(max = 140.dp)
                             .height(52.dp),
                         shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
+                        colors = ButtonDefaults.outlinedButtonColors(
                             containerColor = Color.White,
                             contentColor = TutorialTeal,
                             disabledContainerColor = TutorialGray,
                             disabledContentColor = Color.Gray
-                        )
+                        ),
+                        border = BorderStroke(2.dp, TutorialTeal) // Add teal border
                     ) {
                         Text(
                             text = "Tengo una duda",
@@ -526,10 +475,10 @@ fun HorizontalTutorialScreen(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    
-                    // "Repetir" button
-                    Button(
-                        onClick = { 
+
+// "Repetir" button - Better contrast and border
+                    OutlinedButton(  // Use OutlinedButton for consistency
+                        onClick = {
                             viewModel.repeatCurrentStep()
                         },
                         modifier = Modifier
@@ -537,11 +486,16 @@ fun HorizontalTutorialScreen(
                             .widthIn(max = 140.dp)
                             .height(52.dp),
                         shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
+                        colors = ButtonDefaults.outlinedButtonColors(
                             containerColor = Color.White,
-                            contentColor = Color.Gray,
+                            contentColor = Color(0xFF666666), // Darker gray for better contrast
                             disabledContainerColor = TutorialGray,
                             disabledContentColor = Color.LightGray
+                        ),
+                        border = BorderStroke(
+                            width = 2.dp,
+                            color = if (uiState.tutorMessage?.isNotBlank() == true && !uiState.isAlpacaSpeaking)
+                                Color(0xFF666666) else Color.LightGray
                         ),
                         enabled = uiState.tutorMessage?.isNotBlank() == true && !uiState.isAlpacaSpeaking
                     ) {
@@ -554,7 +508,8 @@ fun HorizontalTutorialScreen(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    
+
+
                     // "Nuevo Problema" button
 //                    Button(
 //                        onClick = {
@@ -1416,13 +1371,6 @@ private fun DrawScope.drawAnimatedRectangle(
         }
         
         drawIntoCanvas { canvas ->
-            canvas.nativeCanvas.drawText(
-                expressionText,
-                canvasSize.width / 2f,
-                startY - 20.dp.toPx(),
-                dimensionPaint
-            )
-            
             if (rectangle.animationPhase == RectanglePhase.FILLING_ROWS) {
                 canvas.nativeCanvas.drawText(
                     progressText,
