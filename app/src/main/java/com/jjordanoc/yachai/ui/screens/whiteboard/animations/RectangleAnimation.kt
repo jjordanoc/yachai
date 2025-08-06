@@ -5,7 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.graphics.Paint
 import java.util.UUID
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.AnimationCommand
 import com.jjordanoc.yachai.ui.theme.*
 
@@ -30,6 +32,7 @@ class RectangleAnimation(
     val width: Int,
     val lengthLabel: String = "longitud",
     val widthLabel: String = "ancho",
+    val showGrid: Boolean = false,
     override val id: String = UUID.randomUUID().toString()
 ) : MathAnimation {
     
@@ -38,6 +41,43 @@ class RectangleAnimation(
     
     @Composable
     override fun draw() {
+        // Animation state for grid columns
+        var visibleColumns by remember { mutableStateOf(0) }
+        var fadeInAlpha by remember { mutableStateOf(0f) }
+        var slideProgress by remember { mutableStateOf(0f) }
+        
+        val coroutineScope = rememberCoroutineScope()
+        
+        // Start grid animation when showGrid is true
+        LaunchedEffect(showGrid) {
+            if (showGrid) {
+                // Initial delay before first column appears
+                delay(1000)
+                
+                // First column fade-in animation
+                visibleColumns = 1
+                fadeInAlpha = 0f
+                repeat(10) {
+                    fadeInAlpha += 0.1f
+                    delay(50) // 500ms total fade-in
+                }
+                
+                // Subsequent columns with sliding animation
+                for (col in 2..length) {
+                    delay(2000) // 2 second delay between columns
+                    
+                    visibleColumns = col
+                    slideProgress = 0f
+                    
+                    // Sliding animation for current column
+                    repeat(8) {
+                        slideProgress += 0.125f
+                        delay(100) // 800ms total sliding animation
+                    }
+                }
+            }
+        }
+        
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -99,6 +139,38 @@ class RectangleAnimation(
                         style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
                     )
                     
+                    // Draw grid if enabled
+                    if (showGrid && visibleColumns > 0) {
+                        for (col in 0 until visibleColumns) {
+                            for (row in 0 until width) {
+                                val squareX = startX + (col * unitSize)
+                                val squareY = startY + (row * unitSize)
+                                
+                                // Calculate animation alpha for this column
+                                val columnAlpha = when {
+                                    col == 0 -> fadeInAlpha // First column uses fade-in
+                                    col < visibleColumns - 1 -> 1f // Fully visible columns
+                                    else -> slideProgress // Current sliding column
+                                }
+                                
+                                // Draw grid square with blue fill and darker border
+                                drawRect(
+                                    color = gridBlue.copy(alpha = columnAlpha),
+                                    topLeft = androidx.compose.ui.geometry.Offset(squareX, squareY),
+                                    size = androidx.compose.ui.geometry.Size(unitSize, unitSize)
+                                )
+                                
+                                // Draw grid square border
+                                drawRect(
+                                    color = gridBorderBlue.copy(alpha = columnAlpha),
+                                    topLeft = androidx.compose.ui.geometry.Offset(squareX, squareY),
+                                    size = androidx.compose.ui.geometry.Size(unitSize, unitSize),
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                                )
+                            }
+                        }
+                    }
+                    
                     // Draw dimension labels
                     // Length label (bottom)
                     drawIntoCanvas { canvas ->
@@ -138,6 +210,7 @@ class RectangleAnimation(
             args = mapOf(
                 "length" to "número (largo)",
                 "width" to "número (ancho)",
+                "showGrid" to "booleano [opcional] (divide el rectángulo en unidades cuadradas)",
             )
         )
         
@@ -168,13 +241,15 @@ class RectangleAnimation(
             
             val lengthLabel = command.args.lengthLabel ?: "longitud"
             val widthLabel = command.args.widthLabel ?: "ancho"
+            val showGrid = command.args.showGrid ?: false
             
             return if (length != null && width != null && length > 0 && width > 0) {
                 RectangleAnimation(
                     length = length,
                     width = width,
                     lengthLabel = lengthLabel,
-                    widthLabel = widthLabel
+                    widthLabel = widthLabel,
+                    showGrid = showGrid
                 )
             } else {
                 null

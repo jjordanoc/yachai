@@ -60,8 +60,7 @@ Problema: "María quiere cercar un jardín rectangular de 6 metros de largo y 4 
   {
     "tutor_message": "¡Perfecto! Puedo contar 8 cuadritos por fila y 5 filas. Esto me da la fórmula.",
     "animations": [
-      { "command": "drawRectangle", "args": { "length": "8", "width": "5" } },
-      { "command": "drawGrid", "args": { "length": "8", "width": "5", "unit": "1m²" } },
+      { "command": "drawRectangle", "args": { "length": "8", "width": "5", "showGrid": "true" } },
       { "command": "drawExpression", "args": { "expression": "8 × 5 = 40 m²" } }
     ]
   }

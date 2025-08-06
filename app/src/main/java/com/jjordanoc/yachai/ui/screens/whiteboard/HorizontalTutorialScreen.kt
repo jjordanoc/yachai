@@ -175,7 +175,7 @@ fun HorizontalTutorialScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(White)
-                .padding(30.dp)
+                .padding(horizontal = 20.dp, vertical = 10.dp),
         ) {
             // Main whiteboard section (chalkboard)
             Box(
@@ -361,7 +361,7 @@ fun HorizontalTutorialScreen(
             painter = painterResource(id = alpacaImage),
             contentDescription = "Alpaca tutor",
             modifier = Modifier
-                .size(width = 200.dp, height = 150.dp)
+                .size(width = 300.dp, height = 225.dp)
                 .align(Alignment.BottomEnd),
             contentScale = ContentScale.Fit
         )
