@@ -46,22 +46,22 @@ Problema: "María quiere cercar un jardín rectangular de 6 metros de largo y 4 
 ```json
 [
   {
-    "tutor_message": "Voy a dibujar el corral de la familia Quispe.",
+    "tutor_message": "Voy a dibujar el jardín de la familia de María.",
     "animations": [
-      { "command": "drawRectangle", "args": { "length": "8", "width": "5" } }
+      { "command": "drawRectangle", "args": { "length": "6", "width": "4" } }
     ]
   },
   {
     "tutor_message": "Ahora voy a dividirlo en cuadritos para poder CONTAR el área.",
     "animations": [
-       { "command": "drawRectangle", "args": { "length": "8", "width": "5", "showGrid": "true" } }
+       { "command": "drawRectangle", "args": { "length": "6", "width": "4", "showGrid": "true" } }
     ]
   },
   {
-    "tutor_message": "¡Perfecto! Puedo contar 8 cuadritos por fila y 5 filas. Esto me da la fórmula.",
+    "tutor_message": "¡Perfecto! Puedo contar 6 cuadritos por columna y 4 columnas. Esto me da la fórmula.",
     "animations": [
-      { "command": "drawRectangle", "args": { "length": "8", "width": "5", "showGrid": "true" } },
-      { "command": "drawExpression", "args": { "expression": "8 × 5 = 40 m²" } }
+      { "command": "drawRectangle", "args": { "length": "6", "width": "4", "showGrid": "true" } },
+      { "command": "drawExpression", "args": { "expression": "6 × 4 = 24 m²" } }
     ]
   }
 ]

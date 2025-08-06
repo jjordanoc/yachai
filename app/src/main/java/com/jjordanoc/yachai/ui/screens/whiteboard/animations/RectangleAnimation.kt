@@ -58,7 +58,7 @@ class RectangleAnimation(
                 visibleColumns = 1
                 fadeInAlpha = 0f
                 repeat(10) {
-                    fadeInAlpha += 0.1f
+                    fadeInAlpha = (fadeInAlpha + 0.1f).coerceIn(0f, 1f)
                     delay(50) // 500ms total fade-in
                 }
                 
@@ -71,7 +71,7 @@ class RectangleAnimation(
                     
                     // Sliding animation for current column
                     repeat(8) {
-                        slideProgress += 0.125f
+                        slideProgress = (slideProgress + 0.125f).coerceIn(0f, 1f)
                         delay(100) // 800ms total sliding animation
                     }
                 }
@@ -151,7 +151,7 @@ class RectangleAnimation(
                                     col == 0 -> fadeInAlpha // First column uses fade-in
                                     col < visibleColumns - 1 -> 1f // Fully visible columns
                                     else -> slideProgress // Current sliding column
-                                }
+                                }.coerceIn(0f, 1f) // Clamp to valid range
                                 
                                 // Draw grid square with blue fill and darker border
                                 drawRect(
