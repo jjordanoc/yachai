@@ -215,27 +215,27 @@ fun HorizontalTutorialScreen(
 
 
             }
-            Spacer(modifier = Modifier.height(15.dp))
+//            Spacer(modifier = Modifier.height(15.dp))
+
+            // Calculate available width for buttons (accounting for alpaca space)
+            val alpacaWidth = 200.dp
+            val availableWidth =
+                LocalConfiguration.current.screenWidthDp.dp - 60.dp - alpacaWidth // Account for padding and alpaca
 
             // Tutorial control buttons
             Column(modifier = Modifier.padding(10.dp)) {
                 // Show status indicator when tutor is speaking
-                if (uiState.isAlpacaSpeaking) {
-                    Text(
-                        text = "El tutor está hablando...",
-                        color = Color.Gray,
-                        fontSize = 12.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp)
-                    )
-                }
-
-                // Calculate available width for buttons (accounting for alpaca space)
-                val alpacaWidth = 200.dp
-                val availableWidth =
-                    LocalConfiguration.current.screenWidthDp.dp - 60.dp - alpacaWidth // Account for padding and alpaca
+                Text(
+                    text = if (uiState.isAlpacaSpeaking) uiState.tutorMessage.orEmpty() else "",
+                    color = Color.Black,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Start,
+                    modifier = Modifier
+                        .width(availableWidth)
+                        .padding(bottom = 5.dp),
+                    minLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
 
                 Row(
                     modifier = Modifier
