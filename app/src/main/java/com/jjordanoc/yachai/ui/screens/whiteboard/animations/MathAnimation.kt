@@ -30,5 +30,15 @@ interface MathAnimation {
                 else -> null
             }
         }
+        
+        /**
+         * Get all available animation signatures for LLM prompts
+         */
+        fun getAllSignatures(): List<AnimationSignature> {
+            return listOf(
+                RectangleAnimation.signature,
+                ExpressionAnimation.signature
+            )
+        }
     }
 } 

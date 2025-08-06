@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.sp
 import android.graphics.Paint
 import java.util.UUID
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.AnimationCommand
+import com.jjordanoc.yachai.ui.theme.*
 
 /**
  * Animation for drawing a rectangle with dimensions and labels.
@@ -33,10 +34,7 @@ class RectangleAnimation(
 ) : MathAnimation {
     
     // Educational color hierarchy for whiteboard
-    private val baseWhite = Color(0xFFFFFBF0) // Level 1: Base objects (main shapes)
-    private val secondaryTeal = Color(0xFF4DB6AC) // Level 2: Secondary elements
-    private val focusAmber = Color(0xFFFFC107) // Level 3: Focus & highlights (dimensions)
-    private val criticalYellow = Color(0xFFFFE082) // Level 4: Critical info (highlights)
+
     
     @Composable
     override fun draw() {
@@ -126,22 +124,23 @@ class RectangleAnimation(
                         canvas.nativeCanvas.restore()
                     }
                 }
-                
-                // Area calculation text
-                val totalArea = length * width
-                Text(
-                    text = "Área = $length × $width = $totalArea unidades cuadradas",
-                    color = baseWhite,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
         }
     }
     
     companion object {
+        /**
+         * Static signature for this animation type
+         */
+        val signature = AnimationSignature(
+            name = "drawRectangle",
+            description = "Dibuja un rectángulo con dimensiones especificadas",
+            args = mapOf(
+                "length" to "número (largo)",
+                "width" to "número (ancho)",
+            )
+        )
+        
         /**
          * Create a RectangleAnimation from a command
          */

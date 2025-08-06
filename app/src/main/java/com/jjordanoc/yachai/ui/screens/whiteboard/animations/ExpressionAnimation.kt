@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.util.UUID
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.AnimationCommand
+import com.jjordanoc.yachai.ui.theme.*
 
 /**
  * Animation for displaying mathematical expressions in a readable, prominent font.
@@ -24,10 +25,8 @@ class ExpressionAnimation(
     val expression: String,
     override val id: String = UUID.randomUUID().toString()
 ) : MathAnimation {
-    
+
     // Educational color hierarchy for whiteboard
-    private val baseWhite = Color(0xFFFFFBF0) // Level 1: Base objects
-    private val expressionColor = Color(0xFFFFC107) // Level 3: Focus & highlights (expressions)
     
     @Composable
     override fun draw() {
@@ -43,7 +42,7 @@ class ExpressionAnimation(
         ) {
             Text(
                 text = expression,
-                color = expressionColor,
+                color = baseWhite,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Left,
@@ -53,6 +52,15 @@ class ExpressionAnimation(
     }
     
     companion object {
+        /**
+         * Static signature for this animation type
+         */
+        val signature = AnimationSignature(
+            name = "drawExpression",
+            description = "Escribe una expresión matemática en la pizarra",
+            args = mapOf("expression" to "Texto de la expresión")
+        )
+        
         /**
          * Create an ExpressionAnimation from a command
          */

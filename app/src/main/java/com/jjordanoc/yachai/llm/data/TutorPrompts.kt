@@ -1,64 +1,8 @@
 package com.jjordanoc.yachai.llm.data
 
-data class AnimationPrimitive(
-    val name: String,
-    val description: String,
-    val args: Map<String, String> // key = argument name, value = description
-)
-
-object Primitives {
-
-    val base = listOf(
-        AnimationPrimitive(
-            name = "drawExpression",
-            description = "Escribe una expresión matemática en la pizarra",
-            args = mapOf("expression" to "Texto de la expresión")
-        ),
-    )
-
-    val arithmetic = listOf(
-        AnimationPrimitive(
-            name = "drawNumberLine",
-            description = "Dibuja una recta numérica",
-            args = mapOf("range" to "[inicio, fin]", "marks" to "Números a marcar", "highlight" to "Números a resaltar")
-        ),
-    )
-
-    val geometry = listOf(
-        AnimationPrimitive("drawRectangle", "Dibuja un rectángulo", mapOf("length" to "número (largo)", "width" to "número (ancho)")),
-        AnimationPrimitive("drawGrid", "Dibuja una cuadrícula sobre el rectángulo para mostrar área", mapOf("length" to "número (largo)", "width" to "número (ancho)", "unit" to "unidad de medida (ej: 1m², 1cm²)")),
-    )
-
-    val data = listOf(
-        // Basic data organization
-        AnimationPrimitive("drawTable", "Dibuja una tabla de datos",
-            mapOf("headers" to "nombres de columnas", "rows" to "filas de datos")),
-        AnimationPrimitive("drawTallyChart", "Dibuja conteo con palitos",
-            mapOf("categories" to "nombres", "counts" to "números a contar")),
-        
-        // Data visualization
-        AnimationPrimitive("drawBarChart", "Dibuja gráfico de barras",
-            mapOf("labels" to "categorías", "values" to "valores numéricos")),
-        AnimationPrimitive("drawPieChart", "Dibuja gráfico circular",
-            mapOf("labels" to "categorías", "values" to "valores para cada parte")),
-        AnimationPrimitive("drawDotPlot", "Dibuja gráfico de puntos",
-            mapOf("values" to "datos numéricos", "min" to "valor mínimo", "max" to "valor máximo")),
-        AnimationPrimitive("drawLineChart", "Dibuja gráfico de líneas",
-            mapOf("labels" to "categorías o tiempo", "values" to "valores numéricos")),
-        
-        // Data highlighting and analysis
-        AnimationPrimitive("highlightData", "Resalta datos específicos",
-            mapOf("type" to "bar|dot|slice", "index" to "posición a resaltar")),
-        AnimationPrimitive("drawMeanLine", "Dibuja línea de promedio",
-            mapOf("value" to "valor del promedio", "label" to "etiqueta opcional")),
-        AnimationPrimitive("showDataRange", "Muestra rango de datos",
-            mapOf("min" to "valor menor", "max" to "valor mayor")),
-        
-        // Summary and conclusions  
-        AnimationPrimitive("appendDataSummary", "Escribe resumen de datos",
-            mapOf("summary" to "conclusión o hallazgo principal"))
-    )
-}
+import com.google.common.primitives.Primitives
+import com.jjordanoc.yachai.ui.screens.whiteboard.animations.MathAnimation
+import com.jjordanoc.yachai.ui.screens.whiteboard.animations.AnimationSignature
 
 
 fun systemPrompt(): String {
@@ -126,14 +70,14 @@ Problema: "María quiere cercar un jardín rectangular de 6 metros de largo y 4 
 """.trimIndent()
 
 
-    fun primitivesWrapper(primitives: List<AnimationPrimitive>) : String {
-        val primitiveDescriptions = primitives.joinToString("\n") { primitive ->
-            val argsFormatted = primitive.args.entries.joinToString("\n    ") { "- ${it.key}: ${it.value}" }
-            "- `${primitive.name}`: ${primitive.description}\n    $argsFormatted"
+    fun signaturesWrapper(signatures: List<AnimationSignature>) : String {
+        val signatureDescriptions = signatures.joinToString("\n") { signature ->
+            val argsFormatted = signature.args.entries.joinToString("\n    ") { "- ${it.key}: ${it.value}" }
+            "- `${signature.name}`: ${signature.description}\n    $argsFormatted"
         }
         return """
         ### Comandos de animación disponibles
-        $primitiveDescriptions
+        $signatureDescriptions
         """.trimIndent()
     }
 
@@ -141,7 +85,7 @@ Problema: "María quiere cercar un jardín rectangular de 6 metros de largo y 4 
         commonIntro,
         thinkAloudRules,
         multiStepFormat,
-        primitivesWrapper(Primitives.base + Primitives.geometry),
+        signaturesWrapper(MathAnimation.getAllSignatures()),
         outputFormat,
     ).joinToString("\n\n")
 }
