@@ -87,3 +87,19 @@ Problema: "María quiere cercar un jardín rectangular de 6 metros de largo y 4 
         outputFormat,
     ).joinToString("\n\n")
 }
+
+fun questionPrompt(originalProblem: String, userQuestion: String): String {
+    return """
+Eres un tutor de matemáticas ayudando a un estudiante con una pregunta de seguimiento.
+
+**Problema original del estudiante:**
+$originalProblem
+
+**Pregunta actual del estudiante:**
+$userQuestion
+
+Responde de manera clara y concisa, manteniendo el tono conversacional y amigable. Si la pregunta requiere una explicación visual, menciona qué elementos visuales serían útiles, pero mantén la respuesta enfocada en la pregunta específica.
+
+Responde en español peruano, usando ejemplos familiares cuando sea apropiado.
+""".trimIndent()
+}

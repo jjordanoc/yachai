@@ -24,6 +24,7 @@ import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardItem
 import com.jjordanoc.yachai.ui.screens.whiteboard.animations.MathAnimation
 import androidx.lifecycle.ViewModelProvider
 import com.jjordanoc.yachai.llm.data.systemPrompt
+import com.jjordanoc.yachai.llm.data.questionPrompt
 
 
 // Removed TutorialFlowState enum - no longer needed since we only have one state
@@ -43,6 +44,13 @@ data class ChatHistoryEntry(
     val pieChart: WhiteboardItem.PieChart? = null,
     val dotPlot: WhiteboardItem.DotPlot? = null,
     val dataSummary: WhiteboardItem.DataSummary? = null,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+data class ChatMessage(
+    val id: String,
+    val text: String,
+    val isFromUser: Boolean,
     val timestamp: Long = System.currentTimeMillis()
 )
 
@@ -81,7 +89,10 @@ data class TutorialState(
     val totalSteps: Int = 0,
     val pendingSteps: List<ExplanationStep> = emptyList(),
     val isInStepSequence: Boolean = false,
-    val stepTimer: Long = 0L
+    val stepTimer: Long = 0L,
+    // Question modal chat functionality
+    val questionModalMessages: List<ChatMessage> = emptyList(),
+    val isQuestionModalProcessing: Boolean = false
 )
 
 class TutorialViewModel(application: Application) : AndroidViewModel(application) {
@@ -517,6 +528,92 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
         ) }
         // Note: Actual LLM cancellation would need to be implemented in LlmHelper
         // For now, we just reset the UI state
+    }
+
+    // Question Modal Chat Methods
+    fun sendQuestionModalMessage(message: String) {
+        val currentState = _uiState.value
+        
+        if (message.isBlank()) {
+            Log.w(TAG, "Attempted to send empty message in question modal")
+            return
+        }
+
+        // Add user message to chat
+        val userMessage = ChatMessage(
+            id = "user_${System.currentTimeMillis()}",
+            text = message,
+            isFromUser = true
+        )
+
+        _uiState.update { state ->
+            state.copy(
+                questionModalMessages = state.questionModalMessages + userMessage,
+                isQuestionModalProcessing = true
+            )
+        }
+
+        // Get the original problem context
+        val originalProblem = currentState.initialProblemStatement.ifBlank { 
+            "Problema con imagen" // Fallback if no text was provided
+        }
+
+        // Process the question with LLM
+        viewModelScope.launch {
+            val prompt = questionPrompt(originalProblem, message)
+            val tokenCount = LlmHelper.sizeInTokens(prompt)
+            Log.d(TAG, "Question Modal LLM Prompt ($tokenCount tokens): $prompt")
+            
+            var fullResponse = ""
+
+            LlmHelper.runInference(
+                input = prompt,
+                images = emptyList(), // No images for follow-up questions
+                resultListener = { partialResult, done ->
+                    fullResponse += partialResult
+                    Log.d(TAG, "Question Modal Partial result: $fullResponse")
+                    if (done) {
+                        Log.d(TAG, "Question Modal LLM inference finished.")
+                        CoroutineScope(Dispatchers.Main).launch {
+                            processQuestionModalResponse(fullResponse)
+                        }
+                    }
+                }
+            )
+        }
+    }
+
+    private fun processQuestionModalResponse(response: String) {
+        Log.d(TAG, "Processing question modal response: $response")
+
+        if (response.startsWith("Error:")) {
+            Log.e(TAG, "Received an error from LlmDataSource in question modal: $response")
+            addQuestionModalMessage("Lo siento, hubo un error procesando tu pregunta. Intenta de nuevo.", false)
+            return
+        }
+
+        // Clean and use the response directly as the AI message
+        val cleanResponse = response.trim()
+        addQuestionModalMessage(cleanResponse, false)
+    }
+
+    private fun addQuestionModalMessage(text: String, isFromUser: Boolean) {
+        val message = ChatMessage(
+            id = if (isFromUser) "user_${System.currentTimeMillis()}" else "ai_${System.currentTimeMillis()}",
+            text = text,
+            isFromUser = isFromUser
+        )
+
+        _uiState.update { state ->
+            state.copy(
+                questionModalMessages = state.questionModalMessages + message,
+                isQuestionModalProcessing = false
+            )
+        }
+    }
+
+    fun clearQuestionModalChat() {
+        _uiState.update { it.copy(questionModalMessages = emptyList()) }
     }
 
 }
