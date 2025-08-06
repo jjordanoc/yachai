@@ -65,6 +65,9 @@ fun HorizontalTutorialScreen(
     val context = LocalContext.current
 
     val uiState by viewModel.uiState.collectAsState()
+    
+    // Question modal state
+    var showQuestionModal by remember { mutableStateOf(false) }
 
     // Navigation logic - handle back button to go to problem input
     LaunchedEffect(Unit) {
@@ -272,7 +275,7 @@ fun HorizontalTutorialScreen(
 // "Tengo una duda" button
                     OutlinedButton(
                         onClick = {
-                            // TODO: Implement clarification functionality
+                            showQuestionModal = true
                         },
                         modifier = Modifier
                             .weight(1f)
@@ -348,4 +351,11 @@ fun HorizontalTutorialScreen(
             contentScale = ContentScale.Fit
         )
     }
+    
+    // Question Modal
+    QuestionModal(
+        isVisible = showQuestionModal,
+        onDismiss = { showQuestionModal = false },
+        viewModel = viewModel
+    )
 }

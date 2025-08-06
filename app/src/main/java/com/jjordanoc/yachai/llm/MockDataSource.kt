@@ -59,9 +59,12 @@ class MockDataSource : LlmDataSource {
     override fun runInference(input: String, images: List<Bitmap>, resultListener: ResultListener) {
         scope.launch {
             try {
-                // Send final result
-                resultListener(mockResponse, true)
-                
+                if (input.contains("llave", ignoreCase = true)) {
+                    resultListener("recibido", true)
+                } else {
+                    // Send final result
+                    resultListener(mockResponse, true)
+                }
             } catch (e: Exception) {
                 resultListener("Mock Error: ${e.message}", true)
             }
@@ -76,4 +79,4 @@ class MockDataSource : LlmDataSource {
     override fun cleanUp() {
         // No cleanup needed for mock data source
     }
-} 
+}
