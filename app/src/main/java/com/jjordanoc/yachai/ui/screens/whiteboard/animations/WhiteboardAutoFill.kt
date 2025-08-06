@@ -29,8 +29,7 @@ fun WhiteboardAutoFill(animations: List<MathAnimation>) {
             AnimationCard(
                 animation = animation,
                 modifier = Modifier
-                    .defaultMinSize(minWidth = 186.dp)
-                    .weight(1f, fill = false) // Similar to 1fr but respects content
+                    .padding(5.dp) // Small spacing between cards
             )
         }
     }

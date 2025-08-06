@@ -21,7 +21,6 @@ fun AnimationCard(
 ) {
     Box(
         modifier = modifier
-            .fillMaxWidth()
             .background(
                 color = Color.White.copy(alpha = 0.05f),
                 shape = RoundedCornerShape(12.dp)
