@@ -92,7 +92,9 @@ data class TutorialState(
     val stepTimer: Long = 0L,
     // Question modal chat functionality
     val questionModalMessages: List<ChatMessage> = emptyList(),
-    val isQuestionModalProcessing: Boolean = false
+    val isQuestionModalProcessing: Boolean = false,
+    // Success modal functionality
+    val showSuccessModal: Boolean = false
 )
 
 class TutorialViewModel(application: Application) : AndroidViewModel(application) {
@@ -614,6 +616,110 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
 
     fun clearQuestionModalChat() {
         _uiState.update { it.copy(questionModalMessages = emptyList()) }
+    }
+
+    // Success Modal Methods
+    fun showSuccessModal() {
+        _uiState.update { it.copy(showSuccessModal = true) }
+    }
+    
+    fun hideSuccessModal() {
+        _uiState.update { it.copy(showSuccessModal = false) }
+    }
+    
+    // Reset everything for a new problem (clean slate)
+    fun resetForNewProblem() {
+        Log.d(TAG, "Resetting for new problem - clean slate")
+        
+        _uiState.update { state ->
+            state.copy(
+                // Reset all input and processing state
+                textInput = "",
+                selectedImageUri = null,
+                tutorMessage = null,
+                subject = "",
+                isProcessing = false,
+                showConfirmationFailureMessage = false,
+                initialProblemStatement = "",
+                isAlpacaSpeaking = false,
+                isReadyForNextStep = false,
+                
+                // Reset all animations
+                activeAnimations = emptyList(),
+                animationTrigger = 0L,
+                
+                // Reset legacy state
+                currentNumberLine = null,
+                currentExpression = null,
+                currentRectangle = null,
+                currentGrid = null,
+                currentDataTable = null,
+                currentTallyChart = null,
+                currentBarChart = null,
+                currentPieChart = null,
+                currentDotPlot = null,
+                currentDataSummary = null,
+                
+                // Reset chat history
+                chatHistory = emptyList(),
+                currentHistoryIndex = -1,
+                isViewingHistory = false,
+                
+                // Reset step sequence
+                currentStepIndex = 0,
+                totalSteps = 0,
+                pendingSteps = emptyList(),
+                isInStepSequence = false,
+                stepTimer = 0L,
+                
+                // Reset question modal
+                questionModalMessages = emptyList(),
+                isQuestionModalProcessing = false,
+                
+                // Hide success modal
+                showSuccessModal = false
+                
+                // Keep: isModelLoading (preserves LLM in memory)
+            )
+        }
+        
+        Log.d(TAG, "Reset complete - ready for new problem")
+    }
+    
+    // Restart current explanation from the beginning
+    fun restartExplanation() {
+        val currentState = _uiState.value
+        
+        if (!currentState.isInStepSequence || currentState.pendingSteps.isEmpty()) {
+            Log.w(TAG, "Cannot restart explanation - no steps available")
+            return
+        }
+        
+        Log.d(TAG, "Restarting explanation from step 1")
+        
+        _uiState.update { state ->
+            state.copy(
+                // Reset to first step
+                currentStepIndex = 0,
+                isReadyForNextStep = false,
+                isAlpacaSpeaking = false,
+                
+                // Clear current animations
+                activeAnimations = emptyList(),
+                animationTrigger = System.currentTimeMillis(),
+                
+                // Keep: pendingSteps (original LLM response)
+                // Keep: totalSteps
+                // Keep: isInStepSequence
+                // Keep: initialProblemStatement
+                // Keep: subject
+            )
+        }
+        
+        // Process the first step immediately
+        processCurrentStep()
+        
+        Log.d(TAG, "Explanation restarted - processing step 1")
     }
 
 }

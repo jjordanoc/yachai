@@ -50,6 +50,7 @@ import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardItem
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.RectanglePhase
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.GridPhase
 import com.jjordanoc.yachai.ui.screens.whiteboard.animations.WhiteboardAutoFill
+import com.jjordanoc.yachai.ui.screens.whiteboard.SuccessModal
 
 @Composable
 fun HorizontalTutorialScreen(
@@ -68,6 +69,11 @@ fun HorizontalTutorialScreen(
     
     // Question modal state
     var showQuestionModal by remember { mutableStateOf(false) }
+    
+    // Check if we're on the final step
+    val isOnFinalStep = uiState.isInStepSequence && 
+                       uiState.currentStepIndex == uiState.totalSteps - 1 && 
+                       uiState.totalSteps > 0
 
     // Navigation logic - handle back button to go to problem input
     LaunchedEffect(Unit) {
@@ -246,9 +252,15 @@ fun HorizontalTutorialScreen(
                         .padding(horizontal = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // "Siguiente paso" button
+                    // "Siguiente paso" / "Terminar problema" button
                     Button(
-                        onClick = { viewModel.nextStepButtonHandler() },
+                        onClick = { 
+                            if (isOnFinalStep) {
+                                viewModel.showSuccessModal()
+                            } else {
+                                viewModel.nextStepButtonHandler()
+                            }
+                        },
                         modifier = Modifier
                             .weight(1f)
                             .widthIn(max = 140.dp)
@@ -260,10 +272,14 @@ fun HorizontalTutorialScreen(
                             disabledContainerColor = TutorialGray,
                             disabledContentColor = Color.Gray
                         ),
-                        enabled = !uiState.isAlpacaSpeaking && uiState.isInStepSequence && uiState.isReadyForNextStep
+                        enabled = !uiState.isAlpacaSpeaking && uiState.isInStepSequence && (uiState.isReadyForNextStep || isOnFinalStep)
                     ) {
                         Text(
-                            text = if (uiState.isProcessing) "Procesando..." else "Siguiente paso",
+                            text = when {
+                                uiState.isProcessing -> "Procesando..."
+                                isOnFinalStep -> "Terminar problema"
+                                else -> "Siguiente paso"
+                            },
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
                             textAlign = TextAlign.Center,
@@ -289,7 +305,7 @@ fun HorizontalTutorialScreen(
                             disabledContentColor = Color.Gray
                         ),
                         border = BorderStroke(2.dp, TutorialTeal),
-                        enabled = !uiState.isAlpacaSpeaking
+                        enabled = !uiState.isAlpacaSpeaking || isOnFinalStep
                     ) {
                         Text(
                             text = "Tengo una duda",
@@ -322,7 +338,7 @@ fun HorizontalTutorialScreen(
                             color = if (!uiState.isAlpacaSpeaking && uiState.tutorMessage?.isNotBlank() == true)
                                 Color(0xFF666666) else Color.LightGray
                         ),
-                        enabled = !uiState.isAlpacaSpeaking && uiState.tutorMessage?.isNotBlank() == true
+                        enabled = (!uiState.isAlpacaSpeaking && uiState.tutorMessage?.isNotBlank() == true) || isOnFinalStep
                     ) {
                         Text(
                             text = "Repetir",
@@ -356,6 +372,12 @@ fun HorizontalTutorialScreen(
     QuestionModal(
         isVisible = showQuestionModal,
         onDismiss = { showQuestionModal = false },
+        viewModel = viewModel
+    )
+
+    // Success Modal
+    SuccessModal(
+        isVisible = uiState.showSuccessModal,
         viewModel = viewModel
     )
 }

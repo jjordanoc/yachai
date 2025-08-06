@@ -92,6 +92,7 @@ fun ProblemInputScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(White)
+                .padding(paddingValues)
                 .padding(horizontal = 30.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
