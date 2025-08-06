@@ -18,13 +18,10 @@ import com.jjordanoc.yachai.llm.data.getLocalPath
 import com.jjordanoc.yachai.utils.SettingsManager
 import com.jjordanoc.yachai.llm.data.ModelConfig
 import com.jjordanoc.yachai.llm.LlmHelper
-import com.jjordanoc.yachai.ui.screens.whiteboard.model.LlmResponse
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.MultiStepResponse
-import com.jjordanoc.yachai.ui.screens.whiteboard.model.TutorialStep
+import com.jjordanoc.yachai.ui.screens.whiteboard.model.ExplanationStep
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardItem
 import com.jjordanoc.yachai.ui.screens.whiteboard.animations.MathAnimation
-import com.jjordanoc.yachai.ui.screens.whiteboard.animations.RectangleAnimation
-import com.jjordanoc.yachai.ui.screens.whiteboard.animations.ExpressionAnimation
 import androidx.lifecycle.ViewModelProvider
 import com.jjordanoc.yachai.llm.data.systemPrompt
 
@@ -82,7 +79,7 @@ data class TutorialState(
     // Step sequence functionality
     val currentStepIndex: Int = 0,
     val totalSteps: Int = 0,
-    val pendingSteps: List<TutorialStep> = emptyList(),
+    val pendingSteps: List<ExplanationStep> = emptyList(),
     val isInStepSequence: Boolean = false,
     val stepTimer: Long = 0L
 )
@@ -174,18 +171,8 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
             val cleanJsonString = cleanJsonResponse(jsonString)
             val currentState = _uiState.value
 
-            // Try to parse as multi-step response first
-            val steps = try {
-                json.decodeFromString<MultiStepResponse>(cleanJsonString)
-            } catch (e: Exception) {
-                Log.d(TAG, "Failed to parse as multi-step response, trying legacy format: ${e.message}")
-                // Fall back to legacy single response format
-                val legacyResponse = json.decodeFromString<LlmResponse>(cleanJsonString)
-                listOf(TutorialStep(
-                    tutorMessage = legacyResponse.tutorMessage ?: "",
-                    animation = legacyResponse.animation.firstOrNull() ?: return
-                ))
-            }
+            // Parse as multi-step response
+            val steps = json.decodeFromString<MultiStepResponse>(cleanJsonString)
 
             Log.d(TAG, "Parsed ${steps.size} tutorial steps")
             
@@ -215,7 +202,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    private fun startStepSequence(steps: List<TutorialStep>, initialState: TutorialState) {
+    private fun startStepSequence(steps: List<ExplanationStep>, initialState: TutorialState) {
         if (steps.isEmpty()) {
             Log.w(TAG, "No steps to process")
             return
@@ -247,7 +234,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun processCurrentStep() {
-            val currentState = _uiState.value
+        val currentState = _uiState.value
 
         if (!currentState.isInStepSequence || 
             currentState.currentStepIndex >= currentState.pendingSteps.size) {
@@ -259,18 +246,28 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
         val currentStep = currentState.pendingSteps[currentState.currentStepIndex]
         Log.d(TAG, "Processing step ${currentState.currentStepIndex + 1}/${currentState.totalSteps}: ${currentStep.tutorMessage}")
 
-        // Handle clear_previous logic
-        var currentAnimations = currentState.activeAnimations
-        if (currentStep.animation.clearPrevious) {
-            Log.d(TAG, "Clearing previous animations due to clear_previous=true")
-            currentAnimations = emptyList()
+        // Clear previous animations and build the complete step snapshot
+        var stepAnimations = emptyList<MathAnimation>()
+        
+        // Process each animation in the step's list
+        currentStep.animations.forEachIndexed { index, animationCommand ->
+            val isLastAnimation = index == currentStep.animations.size - 1
+            
+            // Process the animation command
+            val newAnimations = processAnimationCommandNew(
+                animationCommand,
+                stepAnimations // Use the accumulated animations from this step
+            )
+            
+            stepAnimations = newAnimations
+            
+            // Only trigger animation for the last/newest animation in the step
+            if (isLastAnimation) {
+                Log.d(TAG, "Processing final animation in step: ${animationCommand.command}")
+            } else {
+                Log.d(TAG, "Processing animation ${index + 1}/${currentStep.animations.size}: ${animationCommand.command}")
+            }
         }
-
-        // Process the animation command for current step using new system
-        val newAnimations = processAnimationCommandNew(
-            currentStep.animation,
-            currentAnimations
-        )
 
         val animationTrigger = System.currentTimeMillis()
 
@@ -280,12 +277,12 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 tutorMessage = currentStep.tutorMessage,
                 isAlpacaSpeaking = true,
                 isReadyForNextStep = false, // Disable next step button until alpaca finishes speaking
-                activeAnimations = newAnimations,
+                activeAnimations = stepAnimations,
                 animationTrigger = animationTrigger
             )
         }
 
-        Log.d(TAG, "Step ${currentState.currentStepIndex + 1} processed successfully")
+        Log.d(TAG, "Step ${currentState.currentStepIndex + 1} processed successfully with ${stepAnimations.size} animations")
     }
 
     private fun advanceToNextStep() {

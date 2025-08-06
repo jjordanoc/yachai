@@ -56,7 +56,7 @@ class ExpressionAnimation(
          * Static signature for this animation type
          */
         val signature = AnimationSignature(
-            name = "drawExpression",
+            command = "drawExpression",
             description = "Escribe una expresión matemática en la pizarra",
             args = mapOf("expression" to "Texto de la expresión")
         )

@@ -73,7 +73,7 @@ Problema: "María quiere cercar un jardín rectangular de 6 metros de largo y 4 
     fun signaturesWrapper(signatures: List<AnimationSignature>) : String {
         val signatureDescriptions = signatures.joinToString("\n") { signature ->
             val argsFormatted = signature.args.entries.joinToString("\n    ") { "- ${it.key}: ${it.value}" }
-            "- `${signature.name}`: ${signature.description}\n    $argsFormatted"
+            "- `${signature.command}`: ${signature.description}\n    $argsFormatted"
         }
         return """
         ### Comandos de animación disponibles

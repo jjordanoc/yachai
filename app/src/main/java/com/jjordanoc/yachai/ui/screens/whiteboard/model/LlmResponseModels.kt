@@ -57,16 +57,10 @@ data class AnimationCommand(
 )
 
 @Serializable
-data class LlmResponse(
-    @SerialName("tutor_message") val tutorMessage: String?,
-    val animations: List<AnimationCommand> = emptyList()
-)
-
-@Serializable
-data class TutorialStep(
+data class ExplanationStep(
     @SerialName("tutor_message") val tutorMessage: String,
-    val animation: AnimationCommand
+    val animations: List<AnimationCommand>
 )
 
 // New multi-step response format
-typealias MultiStepResponse = List<TutorialStep>
+typealias MultiStepResponse = List<ExplanationStep>

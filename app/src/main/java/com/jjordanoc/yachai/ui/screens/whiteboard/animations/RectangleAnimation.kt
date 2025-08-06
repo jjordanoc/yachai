@@ -133,7 +133,7 @@ class RectangleAnimation(
          * Static signature for this animation type
          */
         val signature = AnimationSignature(
-            name = "drawRectangle",
+            command = "drawRectangle",
             description = "Dibuja un rectángulo con dimensiones especificadas",
             args = mapOf(
                 "length" to "número (largo)",
