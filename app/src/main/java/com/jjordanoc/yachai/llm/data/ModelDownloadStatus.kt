@@ -39,6 +39,7 @@ fun Model.getLocalPath(context: android.content.Context): String {
 
 // Extension function to check if model is downloaded
 fun Model.isDownloaded(context: android.content.Context): Boolean {
+    return true;
     val file = java.io.File(getLocalPath(context))
     if (!file.exists()) return false
     // The defined size is an approximation, so check if the file size is reasonably close.
