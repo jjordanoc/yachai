@@ -46,7 +46,7 @@ class OnboardingViewModel(application: Application) : AndroidViewModel(applicati
                 .putString(ModelDownloadWorker.KEY_MODEL_URL, model.url)
                 .putString(ModelDownloadWorker.KEY_MODEL_DOWNLOAD_FILE_NAME, model.downloadFileName)
                 .putLong(ModelDownloadWorker.KEY_MODEL_TOTAL_BYTES, model.sizeInBytes)
-                .putString(ModelDownloadWorker.KEY_AUTH_TOKEN, "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")
+                .putString(ModelDownloadWorker.KEY_AUTH_TOKEN, "YOUR_HF_TOKEN")
                 .build()
 
             val downloadWorkRequest = OneTimeWorkRequestBuilder<ModelDownloadWorker>()
