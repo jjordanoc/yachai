@@ -10,7 +10,8 @@ object LlmHelper {
 
     enum class DataSourceType {
         MEDIAPIPE,
-        AZURE
+        AZURE,
+        MOCK
     }
 
     suspend fun switchDataSource(type: DataSourceType, context: Context, modelConfig: ModelConfig? = null) {
@@ -23,6 +24,7 @@ object LlmHelper {
                 MediaPipeLlmDataSource(context, modelConfig)
             }
             DataSourceType.AZURE -> AzureLlmDataSource()
+            DataSourceType.MOCK -> MockDataSource()
         }
         newDataSource.initialize()
         activeDataSource = newDataSource

@@ -191,14 +191,13 @@ fun HorizontalTutorialScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(vertical = 8.dp, horizontal = 20.dp)
                 ) {
 
                     // Main content text - show different content based on state with scrolling fallback
                     LazyColumn(
                         modifier = Modifier
                             .align(Alignment.CenterStart)
-                            .padding(all = 15.dp)
+                            .padding(all = 5.dp)
                             .fillMaxSize(),
                         horizontalAlignment = Alignment.Start,
                         verticalArrangement = Arrangement.Center

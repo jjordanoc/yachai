@@ -22,6 +22,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.AnimationCommand
 import com.jjordanoc.yachai.ui.theme.*
+import kotlin.time.Duration
 
 /**
  * Animation for drawing a rectangle with dimensions and labels.
@@ -36,6 +37,7 @@ class RectangleAnimation(
     // Global figure properties
     private val lengthLabel: String = "longitud"
     private val widthLabel: String = "ancho"
+    private val gridStepDuration: Long = 500 // Duration for each grid step in milliseconds
 
 
     // Educational color hierarchy for whiteboard
@@ -54,7 +56,7 @@ class RectangleAnimation(
         LaunchedEffect(showGrid) {
             if (showGrid) {
                 // Initial delay before first column appears
-                delay(1000)
+                delay(gridStepDuration / 2)
                 
                 // First column fade-in animation
                 visibleColumns = 1
@@ -66,7 +68,7 @@ class RectangleAnimation(
                 
                 // Subsequent columns with sliding animation
                 for (col in 2..length) {
-                    delay(2000) // 2 second delay between columns
+                    delay(gridStepDuration) // 2 second delay between columns
                     
                     visibleColumns = col
                     slideProgress = 0f
@@ -86,23 +88,29 @@ class RectangleAnimation(
                     color = baseWhite.copy(alpha = 0.1f),
                     shape = RoundedCornerShape(8.dp)
                 )
+//                .fillMaxWidth()
+                                        .width(300.dp) // Responsive width range
+                .height(200.dp)
                 .padding(10.dp)
         ) {
             Column(
+                modifier = Modifier
+                    .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Rectangle canvas
                 Canvas(
                     modifier = Modifier
-                        .widthIn(min = 200.dp, max = 400.dp) // Responsive width range
-                        .height(120.dp)
+//                        .widthIn(min = 200.dp, max = 400.dp) // Responsive width range
+                        .fillMaxWidth()
+                        .fillMaxHeight()
                 ) {
                     val canvasSize = size
                     
                     // Calculate the available space for the rectangle
                     val padding = 20.dp.toPx()
                     val availableWidth = canvasSize.width - (2 * padding)
-                    val availableHeight = canvasSize.height - (2 * padding) - 30.dp.toPx()
+                    val availableHeight = canvasSize.height - (2 * padding)
                     
                     // Calculate unit square size based on rectangle dimensions
                     val unitSize = minOf(
