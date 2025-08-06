@@ -223,7 +223,7 @@ class RectangleAnimation(
             args = mapOf(
                 "length" to "número (largo)",
                 "width" to "número (ancho)",
-                "drawAreaGrid" to "booleano [opcional] (divide el área rectángulo en unidades cuadradas para contar)",
+                "drawAreaGrid" to "booleano [opcional, falso por defecto] (divide el área rectángulo en unidades cuadradas para contarlas fácilmente)",
             )
         )
         

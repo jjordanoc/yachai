@@ -13,40 +13,48 @@ class MockDataSource : LlmDataSource {
     private val mockResponse = """
 ```json
 [
-  {
-    "tutor_message": "¡Hola! Vamos a ayudar a la familia Quispe a construir su corral. Primero, dibujaremos el corral con las dimensiones que nos da.",
-    "animations": [
-      { "command": "drawRectangle", "args": { "length": "8", "width": "5", "drawAreaGrid": "true" } }
-    ]
-  },
-  {
-    "tutor_message": "Ahora, para saber cuántos metros cuadrados necesitan, vamos a calcular el área del corral. El área de un rectángulo es largo por ancho, ¿verdad?",
-    "animations": [
-          { "command": "drawRectangle", "args": { "length": "8", "width": "5", "drawAreaGrid": "true" } },
-
-       { "command": "drawExpression", "args": { "expression": "Largo × Ancho = Área" } }
-    ]
-  },
-  {
-    "tutor_message": "Así que, vamos a multiplicar el largo (8 metros) por el ancho (5 metros). ¡Mmm, qué rápido! Podemos pensar en ello como contar cuadritos.",
-    "animations": [
-          { "command": "drawRectangle", "args": { "length": "8", "width": "5", "drawAreaGrid": "true" } },
-       { "command": "drawExpression", "args": { "expression": "8 × 5 = ?" } }
-    ]
-  },
-  {
-    "tutor_message": "¡Ah! ¡Vamos a calcularlo! 8 veces 5 son 40. ¡Perfecto!",
-    "animations": [
-          { "command": "drawRectangle", "args": { "length": "8", "width": "5", "drawAreaGrid": "true" } },
-      { "command": "drawExpression", "args": { "expression": "8 × 5 = 40" } }
-    ]
-  },
-  {
-    "tutor_message": "¡Listo! El área del corral es de 40 metros cuadrados. Ahora la familia Quispe sabrá cuántos metros cuadrados de terreno necesitan.",
-    "animations": [
-       { "command": "drawExpression", "args": { "expression": "Área = 40 m²" } }
-    ]
-  }
+{
+"tutor_message": "Voy a dibujar el jardín. Necesitamos saber cómo calcular el costo de las semillas. Primero necesitamos calcular el área del jardín.",
+"animations": [
+  { "command": "drawRectangle", "args": { "length": "15", "width": "12" } }
+]
+},
+{
+"tutor_message": "Ahora vamos a calcular el área del jardín.",
+"animations": [
+  { "command": "drawExpression", "args": { "expression": "15 × 12 = 180 m²" } }
+]
+},
+{
+"tutor_message": "¡Excelente! Ahora que sabemos el área, podemos calcular cuánta semilla necesitamos.",
+"animations": [
+  { "command": "drawExpression", "args": { "expression": "180 m² × 50 g/m² = 9000 g" } }
+]
+},
+{
+"tutor_message": "Sabemos que necesitamos 9000 gramos de semillas. Podemos convertir eso en kilogramos dividiendo por 1000.",
+"animations": [
+  { "command": "drawExpression", "args": { "expression": "9000 g / 1000 = 9 kg" } }
+]
+},
+{
+"tutor_message": "Ahora sabemos que necesitamos 9 kg de semillas. Necesitamos saber cuánta semilla cuesta por kilogramo.",
+"animations": [
+  { "command": "drawExpression", "args": { "expression": "1 kg de semillas cuesta S/18.40" } }
+]
+},
+{
+"tutor_message": "Para averiguar cuánto debemos pagar por las semillas, vamos a multiplicar la cantidad de kilogramos que necesitamos por el precio por kilogramo.",
+"animations": [
+  { "command": "drawExpression", "args": { "expression": "9 kg × S/18.40/kg = S/165.60" } }
+]
+},
+{
+"tutor_message": "¡Listo! Así que, deberás pagar S/165.60 por las semillas que necesitas.",
+"animations": [
+  { "command": "drawExpression", "args": { "expression": "S/165.60" } }
+]
+}
 ]
 ```
     """.trimIndent()
@@ -61,7 +69,7 @@ class MockDataSource : LlmDataSource {
 //    ]
 //  }
 //]
-//```
+//```a
 //    """.trimIndent()
 
     override suspend fun initialize() {

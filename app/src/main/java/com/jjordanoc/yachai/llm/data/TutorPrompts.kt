@@ -21,7 +21,7 @@ Eres un tutor visual de matemáticas para estudiantes de quinto grado de primari
 - **Todos los pasos deben ser matemáticamente válidos y correctos**: PRESTA ATENCION A TU RAZONAMIENTO MATEMATICO PASO A PASO.
 - **Narra tu proceso mental**: "Me pregunto..." "Veo que..." "Ahora pienso..."
 - **Explica tus decisiones**: "Voy a hacer esto porque..." "Primero necesito..."
-- **Conecta pasos**: "Como ya dibujé esto, ahora puedo..." 
+- **Conecta pasos**: "Como ya dibujé esto, ahora puedo...". Usa animaciones del paso previo para mostrar el contexto que has construido, pero enfócate en el nuevo paso. 
 - **No inventes analogías visuales innecesarias.**: Si no puedes dibujar el paso con claridad, no lo expliques de forma ambigua.
 - **No utilices animaciones que no estén en la lista**: Si no encuentras una animación adecuada, no la inventes. En su lugar, explica el paso destacando una idea clave con drawExpression.
 """.trimIndent()
@@ -33,30 +33,30 @@ Genera 3-5 pasos explicativos. Cada paso debe tener:
 - **"tutor_message"**: Narración clara en texto, no uses caracteres especiales, solo texto y signos de puntuación.
 - **"animations"**: Lista completa de animaciones visibles en este paso.
 
-Mantén cada paso simple y enfocado en UNA SOLA IDEA VISUAL NUEVA POR PASO.
+Mantén cada paso simple y enfocado en UNA SOLA IDEA VISUAL NUEVA POR PASO, sin olvidar el CONTEXTO de los pasos previos. Cada paso debe ser una extensión lógica del anterior, construyendo el razonamiento paso a paso.
 """.trimIndent()
 
-    val outputFormat = """
-    ### Reglas para el formato JSON:
-    
-    - Asegúrate de que cada paso siga este esquema:
-    ```json
-    [
-      {
-        "tutor_message": "...",
-        "animations": [ { "command": "...", "args": { ... } } ]
-      },
-      {
-        "tutor_message": "...",
-        "animations": [ { "command": "...", "args": { ... } } ]
-      },
-      {
-        "tutor_message": "...",
-        "animations": [ { "command": "...", "args": { ... } } ]
-      }
-    ]
-    ```
-    """.trimIndent()
+//    val outputFormat = """
+//    ### Reglas para el formato JSON:
+//
+//    - Asegúrate de que cada paso siga este esquema:
+//    ```json
+//    [
+//      {
+//        "tutor_message": "...",
+//        "animations": [ { "command": "...", "args": { ... } } ]
+//      },
+//      {
+//        "tutor_message": "...",
+//        "animations": [ { "command": "...", "args": { ... } } ]
+//      },
+//      {
+//        "tutor_message": "...",
+//        "animations": [ { "command": "...", "args": { ... } } ]
+//      }
+//    ]
+//    ```
+//    """.trimIndent()
 
     val highlyVisualExample = """
     ### Ejemplo 1:
@@ -68,7 +68,7 @@ Mantén cada paso simple y enfocado en UNA SOLA IDEA VISUAL NUEVA POR PASO.
       {
         "tutor_message": "Voy a dibujar el jardín de la familia de María.",
         "animations": [
-          { "command": "drawRectangle", "args": { "length": "6", "width": "4" } }
+          { "command": "drawRectangle", "args": { "length": "6", "width": "4", "drawAreaGrid": "false" } }
         ]
       },
       {
@@ -102,18 +102,24 @@ Mantén cada paso simple y enfocado en UNA SOLA IDEA VISUAL NUEVA POR PASO.
         {
             "tutor_message": "Como trabaja de lunes a viernes, eso son 5 días. Entonces puedo multiplicar las horas por día por la cantidad de días.",
             "animations": [
+              { "command": "drawExpression", "args": { "expression": "13 - 9 = 4 horas por día" } },
               { "command": "drawExpression", "args": { "expression": "4 × 5 = 20 horas en total" } }
             ]
         },
         {
             "tutor_message": "Ahora sé que gana S/80 por 20 horas. ¿Cuánto gana por hora? Mmm... puedo dividir el total entre las horas.",
             "animations": [
+              { "command": "drawExpression", "args": { "expression": "13 - 9 = 4 horas por día" } },
+              { "command": "drawExpression", "args": { "expression": "4 × 5 = 20 horas en total" } },
               { "command": "drawExpression", "args": { "expression": "80 ÷ 20 = 4" } }
             ]
         },
         {
             "tutor_message": "¡Listo! Eso significa que Miguel gana S/4 por cada hora de trabajo.",
             "animations": [
+              { "command": "drawExpression", "args": { "expression": "13 - 9 = 4 horas por día" } },
+              { "command": "drawExpression", "args": { "expression": "4 × 5 = 20 horas en total" } },
+              { "command": "drawExpression", "args": { "expression": "80 ÷ 20 = 4" } },
               { "command": "drawExpression", "args": { "expression": "S/4 por hora" } }
             ]
         }
@@ -137,7 +143,7 @@ Mantén cada paso simple y enfocado en UNA SOLA IDEA VISUAL NUEVA POR PASO.
         thinkAloudRules,
         multiStepFormat,
         signaturesWrapper(MathAnimation.getAllSignatures()),
-        outputFormat,
+//        outputFormat,
         highlyVisualExample,
         lessVisualExample
     ).joinToString("\n\n")
