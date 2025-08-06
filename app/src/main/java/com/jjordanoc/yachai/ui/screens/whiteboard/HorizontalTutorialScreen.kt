@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.jjordanoc.yachai.R
+import com.jjordanoc.yachai.ui.Routes
 import com.jjordanoc.yachai.ui.theme.TutorialGreen
 import com.jjordanoc.yachai.ui.theme.TutorialTeal
 import com.jjordanoc.yachai.ui.theme.TutorialGray
@@ -378,6 +379,11 @@ fun HorizontalTutorialScreen(
     // Success Modal
     SuccessModal(
         isVisible = uiState.showSuccessModal,
-        viewModel = viewModel
+        viewModel = viewModel,
+        onResolverOtroProblema = {
+            navController.navigate(Routes.PROBLEM_INPUT_SCREEN) {
+                popUpTo(Routes.HORIZONTAL_TUTORIAL_SCREEN) { inclusive = true }
+            }
+        }
     )
 }

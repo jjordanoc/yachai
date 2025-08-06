@@ -21,6 +21,7 @@ import com.jjordanoc.yachai.ui.theme.White
 fun SuccessModal(
     isVisible: Boolean,
     viewModel: TutorialViewModel,
+    onResolverOtroProblema: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (isVisible) {
@@ -40,6 +41,7 @@ fun SuccessModal(
             ) {
                 SuccessModalContent(
                     viewModel = viewModel,
+                    onResolverOtroProblema = onResolverOtroProblema,
                     modifier = modifier
                 )
             }
@@ -50,6 +52,7 @@ fun SuccessModal(
 @Composable
 private fun SuccessModalContent(
     viewModel: TutorialViewModel,
+    onResolverOtroProblema: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -94,6 +97,7 @@ private fun SuccessModalContent(
                 onClick = {
                     viewModel.resetForNewProblem()
                     viewModel.hideSuccessModal()
+                    onResolverOtroProblema() // Navigate to ProblemInputScreen
                 },
                 modifier = Modifier
                     .widthIn(max = 300.dp)

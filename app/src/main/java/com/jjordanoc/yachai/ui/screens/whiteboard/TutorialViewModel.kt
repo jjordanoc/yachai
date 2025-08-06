@@ -488,7 +488,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
         }}
 
         viewModelScope.launch {
-            val fullPrompt = "$systemPromptStr\n\nHere is the student's message:\n$currentText"
+            val fullPrompt = "$systemPromptStr\n\n### Aquí está el mensaje del estudiante:\n$currentText"
             val tokenCount = LlmHelper.sizeInTokens(fullPrompt)
             Log.d(TAG, "LLM Prompt ($tokenCount tokens): $fullPrompt")
             var fullResponse = ""
