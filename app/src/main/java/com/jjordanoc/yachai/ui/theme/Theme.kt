@@ -27,7 +27,7 @@ private val YachAIColorScheme = lightColorScheme(
     onTertiary = Color.Black,
     onBackground = Color.Black,
     onSurface = Color.Black,
-    error = Color(0xFFB00020),
+    error = cancelRed,
     onError = White
 )
 
