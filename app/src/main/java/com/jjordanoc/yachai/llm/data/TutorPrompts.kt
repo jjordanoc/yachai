@@ -1,4 +1,4 @@
-package com.jjordanoc.yachai.ui.screens.whiteboard
+package com.jjordanoc.yachai.llm.data
 
 data class AnimationPrimitive(
     val name: String,
@@ -31,31 +31,31 @@ object Primitives {
 
     val data = listOf(
         // Basic data organization
-        AnimationPrimitive("drawTable", "Dibuja una tabla de datos", 
+        AnimationPrimitive("drawTable", "Dibuja una tabla de datos",
             mapOf("headers" to "nombres de columnas", "rows" to "filas de datos")),
-        AnimationPrimitive("drawTallyChart", "Dibuja conteo con palitos", 
+        AnimationPrimitive("drawTallyChart", "Dibuja conteo con palitos",
             mapOf("categories" to "nombres", "counts" to "números a contar")),
         
         // Data visualization
-        AnimationPrimitive("drawBarChart", "Dibuja gráfico de barras", 
+        AnimationPrimitive("drawBarChart", "Dibuja gráfico de barras",
             mapOf("labels" to "categorías", "values" to "valores numéricos")),
-        AnimationPrimitive("drawPieChart", "Dibuja gráfico circular", 
+        AnimationPrimitive("drawPieChart", "Dibuja gráfico circular",
             mapOf("labels" to "categorías", "values" to "valores para cada parte")),
-        AnimationPrimitive("drawDotPlot", "Dibuja gráfico de puntos", 
+        AnimationPrimitive("drawDotPlot", "Dibuja gráfico de puntos",
             mapOf("values" to "datos numéricos", "min" to "valor mínimo", "max" to "valor máximo")),
-        AnimationPrimitive("drawLineChart", "Dibuja gráfico de líneas", 
+        AnimationPrimitive("drawLineChart", "Dibuja gráfico de líneas",
             mapOf("labels" to "categorías o tiempo", "values" to "valores numéricos")),
         
         // Data highlighting and analysis
-        AnimationPrimitive("highlightData", "Resalta datos específicos", 
+        AnimationPrimitive("highlightData", "Resalta datos específicos",
             mapOf("type" to "bar|dot|slice", "index" to "posición a resaltar")),
-        AnimationPrimitive("drawMeanLine", "Dibuja línea de promedio", 
+        AnimationPrimitive("drawMeanLine", "Dibuja línea de promedio",
             mapOf("value" to "valor del promedio", "label" to "etiqueta opcional")),
-        AnimationPrimitive("showDataRange", "Muestra rango de datos", 
+        AnimationPrimitive("showDataRange", "Muestra rango de datos",
             mapOf("min" to "valor menor", "max" to "valor mayor")),
         
         // Summary and conclusions  
-        AnimationPrimitive("appendDataSummary", "Escribe resumen de datos", 
+        AnimationPrimitive("appendDataSummary", "Escribe resumen de datos",
             mapOf("summary" to "conclusión o hallazgo principal"))
     )
 }
@@ -89,9 +89,9 @@ Eres un tutor visual de matemáticas para estudiantes de quinto grado de primari
 
 Genera 3-5 pasos explicativos. Cada paso debe tener:
 - **"tutor_message"**: Narración clara
-- **"animation"**: UN SOLO comando de animación que ilustre exactamente lo que narras
+- **"animations"**: Lista completa de animaciones visibles en este paso
 
-Mantén cada paso simple y enfocado en una sola idea visual.
+Mantén cada paso simple y enfocado en UNA SOLA IDEA VISUAL NUEVA POR PASO.
 """
 
     val outputFormat = """
@@ -102,28 +102,28 @@ Problema: "María quiere cercar un jardín rectangular de 6 metros de largo y 4 
 ```json
 [
   {
-    "tutor_message": "¡Perfecto! Veo que María necesita saber el área de su jardín rectangular. Voy a dibujarlo primero para visualizarlo mejor.",
-    "animation": { "command": "drawRectangle", "args": { "length": "6", "width": "4" }, "clear_previous": "false" }
+    "tutor_message": "Voy a dibujar el corral de la familia Quispe.",
+    "animations": [
+      { "command": "drawRectangle", "args": { "length": "8", "width": "5" } }
+    ]
   },
   {
-    "tutor_message": "Ahora me pregunto… ¿cómo calculo el área? Creo que si divido el jardín en cuadritos de 1 metro será más fácil de entender.",
-    "animation": { "command": "drawGrid", "args": { "length": "6", "width": "4", "unit": "1m²" }, "clear_previous": "false" } 
+    "tutor_message": "Ahora voy a dividirlo en cuadritos para poder CONTAR el área.",
+    "animations": [
+      { "command": "drawRectangle", "args": { "length": "8", "width": "5" } },
+      { "command": "drawGrid", "args": { "length": "8", "width": "5", "unit": "1m²" } }
+    ]
   },
   {
-    "tutor_message": "¡Excelente! Puedo contar fácilmente: 6 cuadritos por fila y 4 filas. Entonces: 6 × 4 = 24 metros cuadrados.",
-    "animation": { "command": "drawExpression", "args": { "expression": "6 × 4 = 24 m²" }, "clear_previous": "false" }
+    "tutor_message": "¡Perfecto! Puedo contar 8 cuadritos por fila y 5 filas. Esto me da la fórmula.",
+    "animations": [
+      { "command": "drawRectangle", "args": { "length": "8", "width": "5" } },
+      { "command": "drawGrid", "args": { "length": "8", "width": "5", "unit": "1m²" } },
+      { "command": "drawExpression", "args": { "expression": "8 × 5 = 40 m²" } }
+    ]
   }
 ]
 """.trimIndent()
-
-    fun chatHistoryWrapper(chatHistory: String) : String {
-        return if (chatHistory.isNotBlank()) {
-            "Historial: $chatHistory\nDa el siguiente paso sin repetir."
-        } else {
-            "Comienza con una pregunta guía."
-        }
-    }
-
 
 
     fun primitivesWrapper(primitives: List<AnimationPrimitive>) : String {
@@ -137,13 +137,11 @@ Problema: "María quiere cercar un jardín rectangular de 6 metros de largo y 4 
         """.trimIndent()
     }
 
-
     return listOf(
         commonIntro,
         thinkAloudRules,
         multiStepFormat,
         primitivesWrapper(Primitives.base + Primitives.geometry),
         outputFormat,
-//        chatHistoryWrapper(chatHistory)
     ).joinToString("\n\n")
 }

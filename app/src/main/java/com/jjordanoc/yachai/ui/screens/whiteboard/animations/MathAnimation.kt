@@ -1,10 +1,10 @@
 package com.jjordanoc.yachai.ui.screens.whiteboard.animations
 
-import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.runtime.Composable
 
 /**
- * Common interface for all math animations that can be drawn on the whiteboard.
- * Each animation type implements this interface to provide its drawing logic.
+ * Common interface for all math animations that can be displayed on the whiteboard.
+ * Each animation type implements this interface to provide its rendering logic.
  */
 interface MathAnimation {
     /**
@@ -13,13 +13,8 @@ interface MathAnimation {
     val id: String
     
     /**
-     * Draw this animation on the canvas
-     * @param drawScope The DrawScope to draw on
+     * Render this animation as a Composable
      */
-    fun draw(drawScope: DrawScope)
-    
-    /**
-     * Check if this animation should be visible
-     */
-    fun isVisible(): Boolean = true
+    @Composable
+    fun draw()
 } 

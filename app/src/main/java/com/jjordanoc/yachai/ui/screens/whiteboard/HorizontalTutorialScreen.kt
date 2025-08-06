@@ -49,7 +49,7 @@ import android.graphics.Paint
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardItem
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.RectanglePhase
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.GridPhase
-import com.jjordanoc.yachai.ui.screens.whiteboard.animations.WhiteboardCanvas
+import com.jjordanoc.yachai.ui.screens.whiteboard.animations.WhiteboardAutoFill
 
 @Composable
 fun HorizontalTutorialScreen(
@@ -236,50 +236,12 @@ fun HorizontalTutorialScreen(
                                     Spacer(modifier = Modifier.height(16.dp))
                                 }
                                 
-                                // Display animations using new system
+                                // Display animations using new grid system
                                 if (uiState.activeAnimations.isNotEmpty()) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(200.dp)
-                                    ) {
-                                        WhiteboardCanvas(
-                                            animations = uiState.activeAnimations,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(16.dp))
+                                    WhiteboardAutoFill(animations = uiState.activeAnimations)
                                 }
                                 
-                                // Legacy animation support (will be removed)
-                                uiState.currentRectangle?.let { rectangle ->
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(200.dp)
-                                    ) {
-                                        AnimatedRectangleComponent(
-                                            rectangle = rectangle,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                }
-                                
-                                // Display grid animation if present (overlays on rectangle)
-                                uiState.currentGrid?.let { grid ->
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(200.dp)
-                                    ) {
-                                        AnimatedGridComponent(
-                                            grid = grid,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                }
+
                                 
                                 // Display data visualizations vertically
                                 uiState.currentDataTable?.let { table ->

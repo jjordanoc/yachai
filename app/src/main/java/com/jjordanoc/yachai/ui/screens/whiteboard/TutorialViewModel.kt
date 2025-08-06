@@ -24,7 +24,9 @@ import com.jjordanoc.yachai.ui.screens.whiteboard.model.TutorialStep
 import com.jjordanoc.yachai.ui.screens.whiteboard.model.WhiteboardItem
 import com.jjordanoc.yachai.ui.screens.whiteboard.animations.MathAnimation
 import com.jjordanoc.yachai.ui.screens.whiteboard.animations.RectangleAnimation
+import com.jjordanoc.yachai.ui.screens.whiteboard.animations.ExpressionAnimation
 import androidx.lifecycle.ViewModelProvider
+import com.jjordanoc.yachai.llm.data.systemPrompt
 
 
 // Removed TutorialFlowState enum - no longer needed since we only have one state
@@ -471,6 +473,25 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                         TAG,
                         "Invalid arguments for drawRectangle: base=$baseStr, height=$heightStr"
                     )
+                }
+            }
+            
+            "drawExpression" -> {
+                Log.d(TAG, "drawExpression command found with args: ${command.args}")
+                
+                val expression = command.args.expression
+                
+                if (expression != null && expression.isNotBlank()) {
+                    // Remove any existing expression animations with the same expression
+                    newAnimations.removeAll { it is ExpressionAnimation && it.expression == expression }
+                    
+                    // Add new expression animation
+                    val expressionAnimation = ExpressionAnimation(expression = expression)
+                    newAnimations.add(expressionAnimation)
+                    
+                    Log.d(TAG, "Created expression animation: $expression")
+                } else {
+                    Log.w(TAG, "Invalid arguments for drawExpression: expression=$expression")
                 }
             }
 

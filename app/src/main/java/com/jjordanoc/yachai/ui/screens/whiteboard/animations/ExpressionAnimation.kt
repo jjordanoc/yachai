@@ -1,0 +1,53 @@
+package com.jjordanoc.yachai.ui.screens.whiteboard.animations
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import java.util.UUID
+
+/**
+ * Animation for displaying mathematical expressions in a readable, prominent font.
+ * The expression is displayed in a card-like container with proper styling.
+ */
+class ExpressionAnimation(
+    val expression: String,
+    override val id: String = UUID.randomUUID().toString()
+) : MathAnimation {
+    
+    // Educational color hierarchy for whiteboard
+    private val baseWhite = Color(0xFFFFFBF0) // Level 1: Base objects
+    private val expressionColor = Color(0xFFFFC107) // Level 3: Focus & highlights (expressions)
+    
+    @Composable
+    override fun draw() {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    color = baseWhite.copy(alpha = 0.1f),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                )
+                .padding(10.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(
+                text = expression,
+                color = expressionColor,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Left,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+} 
