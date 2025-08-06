@@ -22,6 +22,8 @@ import androidx.compose.ui.window.DialogProperties
 import com.jjordanoc.yachai.ui.theme.TutorialTeal
 import com.jjordanoc.yachai.ui.theme.White
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.animation.core.*
 
 @Composable
 fun QuestionModal(
@@ -113,6 +115,15 @@ private fun QuestionModalContent(
                     message = message,
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+            
+            // Show thinking bubble when processing
+            if (uiState.isQuestionModalProcessing) {
+                item {
+                    ThinkingBubble(
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
         
@@ -248,6 +259,135 @@ private fun ChatBubble(
                         drawPath(
                             path = path,
                             color = backgroundColor
+                        )
+                    }
+                }
+            }
+        }
+    }
+} 
+
+@Composable
+private fun ThinkingBubble(
+    modifier: Modifier = Modifier
+) {
+    // Animated dots for thinking
+    val infiniteTransition = rememberInfiniteTransition(label = "thinkingDots")
+    val dot1Alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, delayMillis = 0),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dot1"
+    )
+    val dot2Alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, delayMillis = 200),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dot2"
+    )
+    val dot3Alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, delayMillis = 400),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dot3"
+    )
+    
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Row(
+            modifier = Modifier
+                .widthIn(max = 350.dp)
+                .padding(end = 50.dp),
+            horizontalArrangement = Arrangement.Start
+        ) {
+            // Speech bubble triangle for AI messages (left side)
+            Box(
+                modifier = Modifier
+                    .size(0.dp, 0.dp)
+                    .background(
+                        color = TutorialTeal,
+                        shape = androidx.compose.ui.graphics.RectangleShape
+                    )
+                    .clip(
+                        androidx.compose.ui.graphics.RectangleShape
+                    )
+            ) {
+                androidx.compose.foundation.Canvas(
+                    modifier = Modifier
+                        .size(12.dp, 12.dp)
+                        .offset(x = (-6).dp, y = 20.dp)
+                ) {
+                    val path = Path().apply {
+                        moveTo(0f, 0f)
+                        lineTo(12f, 6f)
+                        lineTo(0f, 12f)
+                        close()
+                    }
+                    drawPath(
+                        path = path,
+                        color = TutorialTeal
+                    )
+                }
+            }
+            
+            // Main thinking bubble
+            Card(
+                modifier = Modifier.widthIn(max = 300.dp),
+                shape = RoundedCornerShape(15.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = TutorialTeal
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Pensando",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.Black
+                    )
+                    
+                    // Animated dots
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .background(
+                                    color = Color.Black.copy(alpha = dot1Alpha),
+                                    shape = CircleShape
+                                )
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .background(
+                                    color = Color.Black.copy(alpha = dot2Alpha),
+                                    shape = CircleShape
+                                )
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .background(
+                                    color = Color.Black.copy(alpha = dot3Alpha),
+                                    shape = CircleShape
+                                )
                         )
                     }
                 }

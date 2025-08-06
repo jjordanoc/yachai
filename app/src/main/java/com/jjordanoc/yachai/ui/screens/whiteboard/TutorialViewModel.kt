@@ -572,6 +572,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
                 currentTutorMessage = currentTutorMessage,
                 activeAnimations = currentState.activeAnimations
             )
+            Log.d(TAG, "Sending question modal prompt to LLM: $prompt")
             val tokenCount = LlmHelper.sizeInTokens(prompt)
             Log.d(TAG, "Question Modal LLM Prompt ($tokenCount tokens): $prompt")
             
