@@ -565,7 +565,13 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
 
         // Process the question with LLM
         viewModelScope.launch {
-            val prompt = questionPrompt(originalProblem, message)
+            val currentTutorMessage = currentState.tutorMessage ?: "Explicación en progreso"
+            val prompt = questionPrompt(
+                originalProblem = originalProblem,
+                userQuestion = message,
+                currentTutorMessage = currentTutorMessage,
+                activeAnimations = currentState.activeAnimations
+            )
             val tokenCount = LlmHelper.sizeInTokens(prompt)
             Log.d(TAG, "Question Modal LLM Prompt ($tokenCount tokens): $prompt")
             

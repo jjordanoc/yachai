@@ -208,6 +208,11 @@ class RectangleAnimation(
         }
     }
     
+    override fun toDescription(): String {
+        val gridInfo = if (drawAreaGrid) " con cuadrícula de área" else ""
+        return "Rectángulo de $length × $width unidades$gridInfo"
+    }
+    
     companion object {
         /**
          * Static signature for this animation type

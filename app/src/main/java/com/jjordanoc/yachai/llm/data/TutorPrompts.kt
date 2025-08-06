@@ -144,7 +144,29 @@ Mantén cada paso simple y enfocado en UNA SOLA IDEA VISUAL NUEVA POR PASO.
     ).joinToString("\n\n")
 }
 
-fun questionPrompt(originalProblem: String, userQuestion: String, currentTutorMessage: String, visualElements: String): String {
+/**
+ * Creates a clean, readable dump of the current whiteboard state for LLM context
+ */
+fun createWhiteboardDump(activeAnimations: List<MathAnimation>): String {
+    if (activeAnimations.isEmpty()) {
+        return "La pizarra está vacía."
+    }
+    
+    val animationDescriptions = activeAnimations.mapIndexed { index, animation ->
+        "${index + 1}. ${animation.toDescription()}"
+    }
+    
+    return """
+    **Elementos actuales en la pizarra:**
+    ${animationDescriptions.joinToString("\n")}
+    
+    **Contexto visual:** El estudiante puede ver todos estos elementos simultáneamente en la pizarra digital.
+    """.trimIndent()
+}
+
+fun questionPrompt(originalProblem: String, userQuestion: String, currentTutorMessage: String, activeAnimations: List<MathAnimation> = emptyList()): String {
+    val whiteboardContext = createWhiteboardDump(activeAnimations)
+    
     return """
 Eres un tutor de matemáticas ayudando a un estudiante de quinto grado de primaria con una pregunta de seguimiento.
 
@@ -158,10 +180,14 @@ $userQuestion
 $currentTutorMessage
 
 **Lo que el estudiante visualiza en la pizarra:**
-$visualElements
+$whiteboardContext
 
-Responde de manera clara y concisa siendo amigable. Mantén la respuesta enfocada en la pregunta específica.
-
-Responde en español peruano, usando ejemplos familiares cuando sea apropiado.
+**Instrucciones para tu respuesta:**
+- Responde de manera clara y concisa siendo amigable
+- Mantén la respuesta enfocada en la pregunta específica
+- Considera el contexto visual actual de la pizarra
+- Si la pregunta requiere referenciar elementos específicos de la pizarra, hazlo claramente
+- Responde en español peruano, usando ejemplos familiares cuando sea apropiado
+- No puedes generar nuevas visualizaciones para responder preguntas de seguimiento
 """.trimIndent()
 }

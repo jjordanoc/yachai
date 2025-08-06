@@ -19,6 +19,11 @@ interface MathAnimation {
     @Composable
     fun draw()
     
+    /**
+     * Generate a clean, readable description of this animation for LLM context
+     */
+    fun toDescription(): String
+    
     companion object {
         /**
          * Create an animation from a command, or null if the command is not supported

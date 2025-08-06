@@ -49,6 +49,10 @@ class ExpressionAnimation(
         }
     }
     
+    override fun toDescription(): String {
+        return "Expresión: $expression"
+    }
+    
     companion object {
         /**
          * Static signature for this animation type
