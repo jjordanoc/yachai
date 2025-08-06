@@ -31,7 +31,7 @@ import kotlin.time.Duration
 class RectangleAnimation(
     val length: Int,
     val width: Int,
-    val showGrid: Boolean = false,
+    val drawAreaGrid: Boolean = false,
     override val id: String = UUID.randomUUID().toString()
 ) : MathAnimation {
     // Global figure properties
@@ -53,9 +53,9 @@ class RectangleAnimation(
         
         val coroutineScope = rememberCoroutineScope()
         
-        // Start grid animation when showGrid is true
-        LaunchedEffect(showGrid) {
-            if (showGrid) {
+        // Start grid animation when drawAreaGrid is true
+        LaunchedEffect(drawAreaGrid) {
+            if (drawAreaGrid) {
                 // Initial delay before first column appears
                 delay(gridStepDuration / 2)
                 
@@ -148,7 +148,7 @@ class RectangleAnimation(
                     )
                     
                     // Draw grid if enabled
-                    if (showGrid && visibleColumns > 0) {
+                    if (drawAreaGrid && visibleColumns > 0) {
                         for (col in 0 until visibleColumns) {
                             for (row in 0 until width) {
                                 val squareX = startX + (col * unitSize)
@@ -218,7 +218,7 @@ class RectangleAnimation(
             args = mapOf(
                 "length" to "número (largo)",
                 "width" to "número (ancho)",
-                "showGrid" to "booleano [opcional] (divide el rectángulo en unidades cuadradas)",
+                "drawAreaGrid" to "booleano [opcional] (divide el área rectángulo en unidades cuadradas para contar)",
             )
         )
         
@@ -248,13 +248,13 @@ class RectangleAnimation(
             }
             
 
-            val showGrid = command.args.showGrid ?: false
+            val drawAreaGrid = command.args.drawAreaGrid ?: false
             
             return if (length != null && width != null && length > 0 && width > 0) {
                 RectangleAnimation(
                     length = length,
                     width = width,
-                    showGrid = showGrid
+                    drawAreaGrid = drawAreaGrid
                 )
             } else {
                 null

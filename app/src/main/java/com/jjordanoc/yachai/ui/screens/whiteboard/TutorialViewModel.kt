@@ -468,23 +468,26 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
         val imageUri = currentState.selectedImageUri
         val systemPromptStr = systemPrompt()
 
-        Log.d(TAG, "onSendText called with text: '$currentText' and image URI: $imageUri")
+        Log.d(TAG, "=== onSendText START ===")
+        Log.d(TAG, "Current text: '$currentText'")
+        Log.d(TAG, "Current text length: ${currentText.length}")
+        Log.d(TAG, "Image URI: $imageUri")
+        Log.d(TAG, "========================")
 
         if (currentText.isBlank() && imageUri == null) {
             Log.w(TAG, "onSendText called with no text or image, ignoring.")
             return
         }
 
+        Log.d(TAG, "=== UPDATING STATE ===")
         _uiState.update { it.copy(
-            textInput = "",
             initialProblemStatement = currentText,
-            tutorMessage = null, // No loading message needed since we go straight to chatting
-            isProcessing = true, // Set processing to true when starting to process
-            isAlpacaSpeaking = true, // Start alpaca animation to show thinking
+            tutorMessage = null,
+            isProcessing = true,
+            isAlpacaSpeaking = true,
             showConfirmationFailureMessage = false
-            // Keep selectedImageUri so it can be displayed in loading screen
         ).also {
-            Log.d(TAG, "State updated for sending text.")
+            Log.d(TAG, "State updated - textInput should still be: '$currentText'")
         }}
 
         viewModelScope.launch {

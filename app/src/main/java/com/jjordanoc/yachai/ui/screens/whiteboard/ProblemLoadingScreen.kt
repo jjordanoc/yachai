@@ -44,11 +44,25 @@ fun ProblemLoadingScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     
-    // Debug logging for image URI and processing state
-    LaunchedEffect(uiState.selectedImageUri, uiState.isProcessing) {
+    // More detailed debug logging
+    LaunchedEffect(Unit) {
+        Log.d("ProblemLoadingScreen", "=== SCREEN LOADED ===")
+        Log.d("ProblemLoadingScreen", "Text input: '${uiState.textInput}'")
+        Log.d("ProblemLoadingScreen", "Text input length: ${uiState.textInput.length}")
+        Log.d("ProblemLoadingScreen", "Text input is blank: ${uiState.textInput.isBlank()}")
         Log.d("ProblemLoadingScreen", "Selected image URI: ${uiState.selectedImageUri}")
-        Log.d("ProblemLoadingScreen", "Text input: ${uiState.textInput}")
         Log.d("ProblemLoadingScreen", "Is processing: ${uiState.isProcessing}")
+        Log.d("ProblemLoadingScreen", "Initial problem statement: '${uiState.initialProblemStatement}'")
+        Log.d("ProblemLoadingScreen", "========================")
+    }
+    
+    // Log state changes
+    LaunchedEffect(uiState.textInput, uiState.selectedImageUri, uiState.isProcessing) {
+        Log.d("ProblemLoadingScreen", "=== STATE CHANGED ===")
+        Log.d("ProblemLoadingScreen", "Text input: '${uiState.textInput}'")
+        Log.d("ProblemLoadingScreen", "Selected image URI: ${uiState.selectedImageUri}")
+        Log.d("ProblemLoadingScreen", "Is processing: ${uiState.isProcessing}")
+        Log.d("ProblemLoadingScreen", "====================")
     }
     
     // Navigation logic - navigate to tutorial screen when processing finishes and we have a tutor message

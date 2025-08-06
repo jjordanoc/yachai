@@ -45,7 +45,7 @@ data class AnimationArgs(
     @Serializable(with = LenientStringSerializer::class) val height: String? = null,
     val lengthLabel: String? = null,
     val widthLabel: String? = null,
-    val showGrid: Boolean? = null,
+    val drawAreaGrid: Boolean? = null,
     // Grid arguments  
     val unit: String? = null
 )
