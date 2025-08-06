@@ -31,6 +31,7 @@ import coil.compose.rememberAsyncImagePainter
 import com.jjordanoc.yachai.R
 import com.jjordanoc.yachai.ui.Routes
 import com.jjordanoc.yachai.ui.theme.White
+import com.jjordanoc.yachai.ui.theme.cancelRed
 
 @Composable
 fun ProblemLoadingScreen(
@@ -113,7 +114,7 @@ fun ProblemLoadingScreen(
                 }
             },
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFFF7B7B)
+                containerColor = cancelRed,
             ),
             modifier = Modifier
                 .align(Alignment.TopEnd)

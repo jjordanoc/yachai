@@ -382,7 +382,7 @@ fun HorizontalTutorialScreen(
         viewModel = viewModel,
         onResolverOtroProblema = {
             navController.navigate(Routes.PROBLEM_INPUT_SCREEN) {
-                popUpTo(Routes.HORIZONTAL_TUTORIAL_SCREEN) { inclusive = true }
+                popUpTo(Routes.MAIN_SCREEN) { inclusive = false }
             }
         }
     )

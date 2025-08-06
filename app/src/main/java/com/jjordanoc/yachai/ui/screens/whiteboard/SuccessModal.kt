@@ -64,7 +64,7 @@ private fun SuccessModalContent(
     ) {
         // Success message
         Text(
-            text = "¡Excelente trabajo!",
+            text = "¡Excelente trabajo! 🎉",
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White,

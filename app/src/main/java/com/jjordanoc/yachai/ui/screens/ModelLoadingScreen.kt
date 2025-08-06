@@ -181,20 +181,12 @@ fun ModelLoadingScreen(
                 }
 
                 // Percentage text
-                AnimatedContent(
-                    targetState = (animatedProgress * 100).toInt(),
-                    transitionSpec = {
-                        slideInVertically { height -> height } + fadeIn() togetherWith
-                                slideOutVertically { height -> -height } + fadeOut()
-                    }
-                ) { percentage ->
-                    Text(
-                        text = "$percentage%",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.Black
-                    )
-                }
+                Text(
+                    text = "${(animatedProgress * 100).toInt()}%",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.Black
+                )
             }
 
             // Estimated time
