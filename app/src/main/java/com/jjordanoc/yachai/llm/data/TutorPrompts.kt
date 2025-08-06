@@ -54,8 +54,7 @@ Problema: "María quiere cercar un jardín rectangular de 6 metros de largo y 4 
   {
     "tutor_message": "Ahora voy a dividirlo en cuadritos para poder CONTAR el área.",
     "animations": [
-      { "command": "drawRectangle", "args": { "length": "8", "width": "5" } },
-      { "command": "drawGrid", "args": { "length": "8", "width": "5", "unit": "1m²" } }
+       { "command": "drawRectangle", "args": { "length": "8", "width": "5", "showGrid": "true" } }
     ]
   },
   {

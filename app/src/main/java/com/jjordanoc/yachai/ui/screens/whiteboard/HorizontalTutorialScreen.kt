@@ -63,16 +63,16 @@ fun HorizontalTutorialScreen(
     val configuration = LocalConfiguration.current
     // App is always in landscape mode
     val context = LocalContext.current
-    
+
     val uiState by viewModel.uiState.collectAsState()
-    
+
     // Navigation logic - handle back button to go to problem input
     LaunchedEffect(Unit) {
         // Set up back button handling
         // This ensures when user presses back from tutorial, they go to problem input
         // rather than the loading screen
     }
-    
+
     // Animation for alpaca speaking - only animate when actually speaking
     val speakingAnimation = rememberInfiniteTransition(label = "alpaca_speaking")
     val isMouthOpen by if (uiState.isAlpacaSpeaking) {
@@ -88,11 +88,11 @@ fun HorizontalTutorialScreen(
     } else {
         remember { Animatable(0f) }.asState()
     }
-    
+
     // --- Text-to-Speech Setup ---
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
     var ttsInitialized by remember { mutableStateOf(false) }
-    
+
     DisposableEffect(context) {
         Log.d(TAG, "Initializing TTS engine.")
         tts = TextToSpeech(context) { status ->
@@ -103,7 +103,7 @@ fun HorizontalTutorialScreen(
                     Log.e(TAG, "TTS language (es-419) not supported or missing data.")
                 } else {
                     Log.d(TAG, "TTS language set to Latin American Spanish.")
-                    
+
                     // Set up TTS progress listener to sync with alpaca animation
                     tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                         override fun onStart(utteranceId: String?) {
@@ -131,7 +131,7 @@ fun HorizontalTutorialScreen(
                             viewModel.ttsFailed()
                         }
                     })
-                    
+
                     ttsInitialized = true
                 }
             } else {
@@ -154,164 +154,113 @@ fun HorizontalTutorialScreen(
         if (tutorMessageText != null && ttsInitialized) {
             // Small delay to let UI update, then start TTS
             delay(500)
-            
+
             // Use the tutor message directly for speech
             val speechText = tutorMessageText
-            
+
             Log.d(TAG, "Triggering TTS speech for: '$speechText'")
-            
+
             // Create unique utterance ID for tracking
             val utteranceId = "tutor_message_${System.currentTimeMillis()}"
             val params = Bundle()
             params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId)
-            
+
             tts?.speak(speechText, TextToSpeech.QUEUE_FLUSH, params, utteranceId)
         }
     }
-    
-
-    
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(White)
-            .padding(30.dp)
-    ) {
-        // Main whiteboard section with overlayed alpaca
-        Box(
+    // Use a top-level Box to overlay the alpaca on the whole screen
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Main content: chalkboard and controls
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .background(
-                    color = TutorialGreen,
-                    shape = RoundedCornerShape(8.dp)
-                )
+                .fillMaxSize()
+                .background(White)
+                .padding(30.dp)
         ) {
-            // Content area with minimal padding and scrolling fallback
+            // Main whiteboard section (chalkboard)
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(vertical = 8.dp, horizontal = 20.dp)
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .background(
+                        color = TutorialGreen,
+                        shape = RoundedCornerShape(8.dp)
+                    )
             ) {
-                
-                // Main content text - show different content based on state with scrolling fallback
-                LazyColumn(
+                // Content area with minimal padding and scrolling fallback
+                Box(
                     modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .padding(start = 80.dp, end = 200.dp)
-                        .fillMaxSize(),
-                    horizontalAlignment = Alignment.Start,
-                    verticalArrangement = Arrangement.Center
+                        .fillMaxSize()
+                        .padding(vertical = 8.dp, horizontal = 20.dp)
                 ) {
-                    item {
-                                                Column(
-                            horizontalAlignment = Alignment.Start
-                        ) {
-                            
-                            // Show arithmetic animations (visual content only)
-                                // Display number line if present
-                                uiState.currentNumberLine?.let { numberLine ->
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(60.dp)
-                                    ) {
-                                        ArithmeticNumberLine(
-                                            numberLine = numberLine,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                }
-                                
-                                // Display expression if present  
-                                uiState.currentExpression?.let { expression ->
-                                    Text(
-                                        text = expression,
-                                        color = White,
-                                        fontSize = 18.sp,
-                                        textAlign = TextAlign.Left,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                }
-                                
+
+                    // Main content text - show different content based on state with scrolling fallback
+                    LazyColumn(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .padding(all = 15.dp)
+                            .fillMaxSize(),
+                        horizontalAlignment = Alignment.Start,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        item {
+                            Column(
+                                horizontalAlignment = Alignment.Start
+                            ) {
+
+
                                 // Display animations using new grid system
                                 if (uiState.activeAnimations.isNotEmpty()) {
                                     WhiteboardAutoFill(animations = uiState.activeAnimations)
                                 }
-                                
 
 
-                            // Show error message if needed
-                            if (uiState.showConfirmationFailureMessage) {
-                                Text(
-                                    text = "Por favor, vuelve a intentarlo escribiendo el problema en texto o subiendo una imagen.",
-                                    color = MaterialTheme.colorScheme.error,
-                                    fontSize = 16.sp,
-                                    textAlign = TextAlign.Left,
-                                    lineHeight = 22.sp
-                                )
+                                // Show error message if needed
+                                if (uiState.showConfirmationFailureMessage) {
+                                    Text(
+                                        text = "Por favor, vuelve a intentarlo escribiendo el problema en texto o subiendo una imagen.",
+                                        color = MaterialTheme.colorScheme.error,
+                                        fontSize = 16.sp,
+                                        textAlign = TextAlign.Left,
+                                        lineHeight = 22.sp
+                                    )
+                                }
                             }
                         }
                     }
+
                 }
-                
+
 
             }
-            
-            // Animated Alpaca at bottom right corner of whiteboard
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(
-                        width = 200.dp,
-                        height = 150.dp
+            Spacer(modifier = Modifier.height(15.dp))
+
+            // Tutorial control buttons
+            Column(modifier = Modifier.padding(10.dp)) {
+                // Show status indicator when tutor is speaking
+                if (uiState.isAlpacaSpeaking) {
+                    Text(
+                        text = "El tutor está hablando...",
+                        color = Color.Gray,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
                     )
-            ) {
-                // Determine which image to show based on speaking state from ViewModel
-                val alpacaImage = if (uiState.isAlpacaSpeaking && isMouthOpen > 0.5f) {
-                    R.drawable.alpakey_yap // Speaking/mouth open
-                } else {
-                    R.drawable.alpakey // Normal/mouth closed
                 }
-                
-                Image(
-                    painter = painterResource(id = alpacaImage),
-                    contentDescription = "Alpaca tutor",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit
-                )
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(15.dp))
-        
-        // Tutorial control buttons
-        Column(modifier = Modifier.padding(10.dp)) {
-            // Show status indicator when tutor is speaking
-            if (uiState.isAlpacaSpeaking) {
-                Text(
-                    text = "El tutor está hablando...",
-                    color = Color.Gray,
-                    fontSize = 12.sp,
-                    textAlign = TextAlign.Center,
+
+                // Calculate available width for buttons (accounting for alpaca space)
+                val alpacaWidth = 200.dp
+                val availableWidth =
+                    LocalConfiguration.current.screenWidthDp.dp - 60.dp - alpacaWidth // Account for padding and alpaca
+
+                Row(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
-                )
-            }
-            
-            // Calculate available width for buttons (accounting for alpaca space)
-            val alpacaWidth = 200.dp
-            val availableWidth = LocalConfiguration.current.screenWidthDp.dp - 60.dp - alpacaWidth // Account for padding and alpaca
-            
-            Row(
-                modifier = Modifier
-                    .width(availableWidth)
-                    .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+                        .width(availableWidth)
+                        .padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     // "Siguiente paso" button
                     Button(
                         onClick = { viewModel.nextStepButtonHandler() },
@@ -402,122 +351,19 @@ fun HorizontalTutorialScreen(
                 }
             }
         }
-    }
-
- 
-
-@Composable
-private fun ArithmeticNumberLine(
-    numberLine: WhiteboardItem.AnimatedNumberLine,
-    modifier: Modifier = Modifier
-) {
-    Canvas(modifier = modifier) {
-        drawNumberLine(
-            numberLine = numberLine,
-            canvasSize = size
-        )
-    }
-}
-
-private fun DrawScope.drawNumberLine(
-    numberLine: WhiteboardItem.AnimatedNumberLine,
-    canvasSize: androidx.compose.ui.geometry.Size
-) {
-    // Educational color hierarchy for whiteboard
-    val baseWhite = Color(0xFFFFFBF0) // Level 1: Base objects (main shapes, number lines)
-    val secondaryTeal = Color(0xFF4DB6AC) // Level 2: Secondary elements (grid lines, aux lines)
-    val focusAmber = Color(0xFFFFC107) // Level 3: Focus & highlights (labels, measurements)
-    val criticalYellow = Color(0xFFFFE082) // Level 4: Critical info (final answers, key results)
-    
-    val textPaint = Paint().apply {
-        color = baseWhite.toArgb()
-        textSize = 14.dp.toPx()
-        textAlign = Paint.Align.CENTER
-    }
-    val highlightPaint = Paint().apply {
-        color = criticalYellow.toArgb()
-        textSize = 16.dp.toPx()
-        textAlign = Paint.Align.CENTER
-        isFakeBoldText = true
-    }
-
-    val yPos = canvasSize.height / 2f
-    val tickHeight = 6.dp.toPx()
-
-    if (numberLine.marks.isEmpty()) {
-        Log.w(TAG, "Cannot draw number line with no marks.")
-        return
-    }
-
-    // Smart scaling: use available width efficiently
-    val padding = 40.dp.toPx()
-    val availableWidth = canvasSize.width - (2 * padding)
-    val startX = padding
-    val endX = canvasSize.width - padding
-
-    // Find the actual min/max values that will be displayed (from marks, not range)
-    val displayedMarks = numberLine.marks.sorted()
-    val minDisplayed = displayedMarks.first()
-    val maxDisplayed = displayedMarks.last()
-    val displaySpan = maxDisplayed - minDisplayed
-    
-    // Draw main line in base white
-    drawLine(
-        color = baseWhite,
-        start = androidx.compose.ui.geometry.Offset(startX, yPos),
-        end = androidx.compose.ui.geometry.Offset(endX, yPos),
-        strokeWidth = 2.dp.toPx()
-    )
-
-    fun getXForValue(value: Int): Float {
-        // Proportional positioning based on the displayed range, not the full range
-        return if (displaySpan == 0) {
-            // If all marks are the same value, center it
-            startX + availableWidth / 2f
+        // Alpaca overlay: always at bottom right of the screen
+        val alpacaImage = if (uiState.isAlpacaSpeaking && isMouthOpen > 0.5f) {
+            R.drawable.alpakey_yap // Speaking/mouth open
         } else {
-            val normalized = (value - minDisplayed).toFloat() / displaySpan
-            startX + normalized * availableWidth
+            R.drawable.alpakey // Normal/mouth closed
         }
-    }
-
-    // Draw marks and labels (only the specified marks, not every number in range)
-    for (markValue in displayedMarks) {
-        val x = getXForValue(markValue)
-        drawLine(
-            color = baseWhite,
-            start = androidx.compose.ui.geometry.Offset(x, yPos - tickHeight),
-            end = androidx.compose.ui.geometry.Offset(x, yPos + tickHeight),
-            strokeWidth = 1.5.dp.toPx()
+        Image(
+            painter = painterResource(id = alpacaImage),
+            contentDescription = "Alpaca tutor",
+            modifier = Modifier
+                .size(width = 200.dp, height = 150.dp)
+                .align(Alignment.BottomEnd),
+            contentScale = ContentScale.Fit
         )
-        drawIntoCanvas { canvas ->
-            canvas.nativeCanvas.drawText(
-                markValue.toString(), 
-                x, 
-                yPos + tickHeight + 20.dp.toPx(), 
-                textPaint
-            )
-        }
-    }
-
-    // Draw highlights (only for values that are actually marked)
-    numberLine.highlight.forEach { highlightValue ->
-        if (highlightValue in displayedMarks) {
-            val x = getXForValue(highlightValue)
-            // Draw a circle for the highlight
-            drawCircle(
-                color = criticalYellow,
-                radius = 8.dp.toPx(),
-                center = androidx.compose.ui.geometry.Offset(x, yPos)
-            )
-            // Overwrite the label with a highlighted one
-            drawIntoCanvas { canvas ->
-                canvas.nativeCanvas.drawText(
-                    highlightValue.toString(), 
-                    x, 
-                    yPos + tickHeight + 20.dp.toPx(), 
-                    highlightPaint
-                )
-            }
-        }
     }
 }
