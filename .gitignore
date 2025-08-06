@@ -19,3 +19,4 @@ local.properties
 .vscode/
 .cursor/
 app/src/main/java/com/jjordanoc/yachai/utils/api/AzureOpenAIClient.kt
+app/src/main/java/com/jjordanoc/yachai/llm/MockDataSource.kt

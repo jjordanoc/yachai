@@ -118,7 +118,7 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
             )
 
             try {
-                LlmHelper.switchDataSource(LlmHelper.DataSourceType.MEDIAPIPE, context, modelConfig)
+                LlmHelper.switchDataSource(LlmHelper.DataSourceType.MOCK, context, modelConfig)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to initialize model: ${e.localizedMessage}")
                 _uiState.update {

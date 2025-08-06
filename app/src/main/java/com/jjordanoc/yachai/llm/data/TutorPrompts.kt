@@ -68,13 +68,13 @@ Mantén cada paso simple y enfocado en UNA SOLA IDEA VISUAL NUEVA POR PASO, sin 
       {
         "tutor_message": "Voy a dibujar el jardín de la familia de María.",
         "animations": [
-          { "command": "drawRectangle", "args": { "length": "6", "width": "4", "drawAreaGrid": "false" } }
+          { "command": "drawRectangle", "args": { "length": "6", "width": "4" } }
         ]
       },
       {
         "tutor_message": "Ahora voy a dividirlo en cuadritos para poder CONTAR el área.",
         "animations": [
-           { "command": "drawRectangle", "args": { "length": "6", "width": "4", "drawAreaGrid": "true" } }
+           { "command": "drawRectangle", "args": { "length": "6", "width": "4" } }
         ]
       },
       {
@@ -184,11 +184,11 @@ $userQuestion
 **Paso actual que estabas explicando:**
 $currentTutorMessage
 
-**Lo que el estudiante visualiza en la pizarra:**
+**Lo que el estudiante visualiza en la pizarra (tú lo escribiste en la pizarra por lo que es correcto):**
 $whiteboardContext
 
 **Instrucciones para tu respuesta:**
-- Responde de manera clara y concisa. Una oración bien pensada debería ser suficiente.
+- Responde de manera clara y concisa. Usa solo UNA oración bien hecha.
 - Mantén la respuesta enfocada en la pregunta específica.
 - Considera el contexto visual actual de la pizarra.
 - Para responder utiliza solo texto y signos de puntuación. No utilices caracteres especiales.
