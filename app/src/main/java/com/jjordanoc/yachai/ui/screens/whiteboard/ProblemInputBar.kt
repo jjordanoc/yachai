@@ -266,7 +266,7 @@ fun ProblemInputBar(
                 modifier = Modifier
                     .weight(1f)
                     .height(120.dp),
-                minLines = 3,
+                minLines = 2,
                 maxLines = 5,
                 enabled = !isProcessing
             )

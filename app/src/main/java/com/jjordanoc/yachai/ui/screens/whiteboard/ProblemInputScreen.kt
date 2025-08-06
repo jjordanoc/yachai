@@ -33,6 +33,7 @@ import com.jjordanoc.yachai.R
 import com.jjordanoc.yachai.ui.Routes
 import com.jjordanoc.yachai.ui.theme.White
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProblemInputScreen(
     navController: NavController,
@@ -52,13 +53,48 @@ fun ProblemInputScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            // TODO: Open settings dialog for GPU toggle
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            tint = Color.Gray,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                )
+            )
+        },
+        bottomBar = {
+            ProblemInputBar(
+                textInput = uiState.textInput,
+                onTextInputChanged = { viewModel.onTextInputChanged(it) },
+                onSendText = { viewModel.onSendText() },
+                onImageSelected = { viewModel.onImageSelected(it) },
+                selectedImageUri = uiState.selectedImageUri,
+                isProcessing = uiState.isProcessing,
+                modifier = Modifier.padding(horizontal = 40.dp, vertical = 10.dp)
+            )
+        }
+    ) { paddingValues ->
+        Row(
             modifier = Modifier
                 .fillMaxSize()
                 .background(White)
-                .padding(30.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = 30.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
             // Alpaca image
             Box(
@@ -74,7 +110,7 @@ fun ProblemInputScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(15.dp))
+//            Spacer(modifier = Modifier.height(15.dp))
 
             // Greeting message
             Text(
@@ -84,37 +120,8 @@ fun ProblemInputScreen(
                 color = Color.Black,
                 textAlign = TextAlign.Center,
                 lineHeight = 24.sp,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(15.dp))
-
-            // Input area using the reusable component
-            ProblemInputBar(
-                textInput = uiState.textInput,
-                onTextInputChanged = { viewModel.onTextInputChanged(it) },
-                onSendText = { viewModel.onSendText() },
-                onImageSelected = { viewModel.onImageSelected(it) },
-                selectedImageUri = uiState.selectedImageUri,
-                isProcessing = uiState.isProcessing
-            )
-        }
-
-        // Settings gear floating in top right
-        IconButton(
-            onClick = {
-                // TODO: Open settings dialog for GPU toggle
-            },
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 30.dp, end = 30.dp)
-                .size(48.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = "Settings",
-                tint = Color.Gray,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
             )
         }
     }
