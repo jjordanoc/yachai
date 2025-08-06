@@ -1,6 +1,7 @@
 package com.jjordanoc.yachai.ui.screens.whiteboard.animations
 
 import androidx.compose.runtime.Composable
+import com.jjordanoc.yachai.ui.screens.whiteboard.model.AnimationCommand
 
 /**
  * Common interface for all math animations that can be displayed on the whiteboard.
@@ -17,4 +18,17 @@ interface MathAnimation {
      */
     @Composable
     fun draw()
+    
+    companion object {
+        /**
+         * Create an animation from a command, or null if the command is not supported
+         */
+        fun fromCommand(command: AnimationCommand): MathAnimation? {
+            return when (command.command) {
+                "drawRectangle" -> RectangleAnimation.fromCommand(command)
+                "drawExpression" -> ExpressionAnimation.fromCommand(command)
+                else -> null
+            }
+        }
+    }
 } 

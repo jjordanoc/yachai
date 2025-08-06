@@ -425,81 +425,20 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
         currentAnimations: List<MathAnimation>
     ): List<MathAnimation> {
         val newAnimations = currentAnimations.toMutableList()
-
-        when (command.command) {
-            "drawRectangle" -> {
-                Log.d(TAG, "drawRectangle command found with args: ${command.args}")
-
-                // Handle new string-based base/height parameters
-                val baseStr = command.args.base
-                val heightStr = command.args.height
-
-                // Also support legacy numeric parameters
-                val lengthNum = command.args.length
-                val widthNum = command.args.width
-
-                // Parse string values to integers
-                val length = try {
-                    baseStr?.toInt() ?: lengthNum
-                } catch (e: NumberFormatException) {
-                    lengthNum
-                }
-
-                val width = try {
-                    heightStr?.toInt() ?: widthNum
-                } catch (e: NumberFormatException) {
-                    widthNum
-                }
-
-                val lengthLabel = command.args.lengthLabel ?: "longitud"
-                val widthLabel = command.args.widthLabel ?: "ancho"
-
-                if (length != null && width != null && length > 0 && width > 0) {
-                    // Remove any existing rectangle animations
-                    newAnimations.removeAll { it is RectangleAnimation }
-
-                    // Add new rectangle animation
-                    val rectangleAnimation = RectangleAnimation(
-                        length = length,
-                        width = width,
-                        lengthLabel = lengthLabel,
-                        widthLabel = widthLabel
-                    )
-                    newAnimations.add(rectangleAnimation)
-
-                    Log.d(TAG, "Created rectangle animation: ${length}x${width}")
-                } else {
-                    Log.w(
-                        TAG,
-                        "Invalid arguments for drawRectangle: base=$baseStr, height=$heightStr"
-                    )
-                }
-            }
-            
-            "drawExpression" -> {
-                Log.d(TAG, "drawExpression command found with args: ${command.args}")
-                
-                val expression = command.args.expression
-                
-                if (expression != null && expression.isNotBlank()) {
-                    // Remove any existing expression animations with the same expression
-                    newAnimations.removeAll { it is ExpressionAnimation && it.expression == expression }
-                    
-                    // Add new expression animation
-                    val expressionAnimation = ExpressionAnimation(expression = expression)
-                    newAnimations.add(expressionAnimation)
-                    
-                    Log.d(TAG, "Created expression animation: $expression")
-                } else {
-                    Log.w(TAG, "Invalid arguments for drawExpression: expression=$expression")
-                }
-            }
-
-            else -> {
-                Log.w(TAG, "Unknown animation command: ${command.command}")
-            }
+        
+        Log.d(TAG, "Processing animation command: ${command.command} with args: ${command.args}")
+        
+        // Try to create animation from command
+        val animation = MathAnimation.fromCommand(command)
+        
+        if (animation != null) {
+            // Add the new animation
+            newAnimations.add(animation)
+            Log.d(TAG, "Created animation: ${animation::class.simpleName}")
+        } else {
+            Log.w(TAG, "Failed to create animation for command: ${command.command}")
         }
-
+        
         return newAnimations
     }
 
@@ -583,56 +522,6 @@ class TutorialViewModel(application: Application) : AndroidViewModel(application
         // For now, we just reset the UI state
     }
 
-    /**
-     * Build compact conversation history for LLM context (optimized for small models)
-     */
-    private fun buildConversationHistory(currentState: TutorialState, currentUserInput: String): String {
-        val history = mutableListOf<String>()
-        
-        // Add problem statement (essential context)
-        history.add("Problem: ${currentState.initialProblemStatement}")
-        
-        // Only include last 3-4 exchanges to keep token count low
-        val recentHistory = currentState.chatHistory.takeLast(3)
-        
-        recentHistory.forEach { entry ->
-            // Compact format: S=Student, T=Tutor
-            if (entry.userMessage.isNotBlank()) {
-                history.add("S: ${entry.userMessage}")
-            }
-            
-            // Just the essential tutor message, no verbose descriptions
-            var tutorMsg = "T: ${entry.tutorMessage}"
-            
-            // Add minimal visual context
-            entry.numberLine?.let { 
-                tutorMsg += " [showed numbers]"
-            }
-            entry.expression?.let { 
-                tutorMsg += " [showed: ${it}]"
-            }
-            
-            // Add compact visual context for data
-            entry.dataTable?.let { tutorMsg += " [table]" }
-            entry.tallyChart?.let { tutorMsg += " [tally]" }
-            entry.barChart?.let { tutorMsg += " [bars]" }
-            entry.pieChart?.let { tutorMsg += " [pie chart]" }
-            entry.dotPlot?.let { tutorMsg += " [dots]" }
-            entry.dataSummary?.let { tutorMsg += " [summary]" }
-            
-            history.add(tutorMsg)
-        }
-        
-        // Add current input
-        if (currentUserInput.isNotBlank()) {
-            history.add("S: $currentUserInput")
-        }
-        
-        val compactHistory = history.joinToString(" | ")
-        Log.d(TAG, "Built compact history (${compactHistory.length} chars): $compactHistory")
-        
-        return compactHistory
-    }
 }
 
 class TutorialViewModelFactory(private val application: Application) : ViewModelProvider.Factory {

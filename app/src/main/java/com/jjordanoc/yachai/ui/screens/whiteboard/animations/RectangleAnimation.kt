@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.graphics.Paint
 import java.util.UUID
+import com.jjordanoc.yachai.ui.screens.whiteboard.model.AnimationCommand
 
 /**
  * Animation for drawing a rectangle with dimensions and labels.
@@ -136,6 +137,48 @@ class RectangleAnimation(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+        }
+    }
+    
+    companion object {
+        /**
+         * Create a RectangleAnimation from a command
+         */
+        fun fromCommand(command: AnimationCommand): RectangleAnimation? {
+            // Handle new string-based base/height parameters
+            val baseStr = command.args.base
+            val heightStr = command.args.height
+            
+            // Also support legacy numeric parameters
+            val lengthNum = command.args.length
+            val widthNum = command.args.width
+            
+            // Parse string values to integers
+            val length = try {
+                baseStr?.toInt() ?: lengthNum
+            } catch (e: NumberFormatException) {
+                lengthNum
+            }
+            
+            val width = try {
+                heightStr?.toInt() ?: widthNum
+            } catch (e: NumberFormatException) {
+                widthNum
+            }
+            
+            val lengthLabel = command.args.lengthLabel ?: "longitud"
+            val widthLabel = command.args.widthLabel ?: "ancho"
+            
+            return if (length != null && width != null && length > 0 && width > 0) {
+                RectangleAnimation(
+                    length = length,
+                    width = width,
+                    lengthLabel = lengthLabel,
+                    widthLabel = widthLabel
+                )
+            } else {
+                null
             }
         }
     }

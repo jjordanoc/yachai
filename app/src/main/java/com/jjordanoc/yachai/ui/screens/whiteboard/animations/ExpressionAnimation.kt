@@ -14,6 +14,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.util.UUID
+import com.jjordanoc.yachai.ui.screens.whiteboard.model.AnimationCommand
 
 /**
  * Animation for displaying mathematical expressions in a readable, prominent font.
@@ -48,6 +49,21 @@ class ExpressionAnimation(
                 textAlign = TextAlign.Left,
                 modifier = Modifier.fillMaxWidth()
             )
+        }
+    }
+    
+    companion object {
+        /**
+         * Create an ExpressionAnimation from a command
+         */
+        fun fromCommand(command: AnimationCommand): ExpressionAnimation? {
+            val expression = command.args.expression
+            
+            return if (expression != null && expression.isNotBlank()) {
+                ExpressionAnimation(expression = expression)
+            } else {
+                null
+            }
         }
     }
 } 
