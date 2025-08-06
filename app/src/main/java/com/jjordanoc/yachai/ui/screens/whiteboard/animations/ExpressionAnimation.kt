@@ -32,7 +32,6 @@ class ExpressionAnimation(
     override fun draw() {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
                 .background(
                     color = baseWhite.copy(alpha = 0.1f),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
@@ -45,8 +44,7 @@ class ExpressionAnimation(
                 color = baseWhite,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Left,
-                modifier = Modifier.fillMaxWidth()
+                textAlign = TextAlign.Left
             )
         }
     }

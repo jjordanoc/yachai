@@ -30,12 +30,14 @@ import com.jjordanoc.yachai.ui.theme.*
 class RectangleAnimation(
     val length: Int,
     val width: Int,
-    val lengthLabel: String = "longitud",
-    val widthLabel: String = "ancho",
     val showGrid: Boolean = false,
     override val id: String = UUID.randomUUID().toString()
 ) : MathAnimation {
-    
+    // Global figure properties
+    private val lengthLabel: String = "longitud"
+    private val widthLabel: String = "ancho"
+
+
     // Educational color hierarchy for whiteboard
 
     
@@ -80,7 +82,6 @@ class RectangleAnimation(
         
         Box(
             modifier = Modifier
-                .fillMaxWidth()
                 .background(
                     color = baseWhite.copy(alpha = 0.1f),
                     shape = RoundedCornerShape(8.dp)
@@ -88,13 +89,12 @@ class RectangleAnimation(
                 .padding(10.dp)
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Rectangle canvas
                 Canvas(
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .widthIn(min = 200.dp, max = 400.dp) // Responsive width range
                         .height(120.dp)
                 ) {
                     val canvasSize = size
@@ -239,16 +239,13 @@ class RectangleAnimation(
                 widthNum
             }
             
-            val lengthLabel = command.args.lengthLabel ?: "longitud"
-            val widthLabel = command.args.widthLabel ?: "ancho"
+
             val showGrid = command.args.showGrid ?: false
             
             return if (length != null && width != null && length > 0 && width > 0) {
                 RectangleAnimation(
                     length = length,
                     width = width,
-                    lengthLabel = lengthLabel,
-                    widthLabel = widthLabel,
                     showGrid = showGrid
                 )
             } else {
