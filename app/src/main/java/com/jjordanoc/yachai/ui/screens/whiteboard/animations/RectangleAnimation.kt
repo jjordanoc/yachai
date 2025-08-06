@@ -38,7 +38,8 @@ class RectangleAnimation(
     private val lengthLabel: String = "longitud"
     private val widthLabel: String = "ancho"
     private val gridStepDuration: Long = 500 // Duration for each grid step in milliseconds
-
+    private val canvasHeight = 180.dp
+    private val canvasWidth = 300.dp // Responsive width range
 
     // Educational color hierarchy for whiteboard
 
@@ -88,9 +89,8 @@ class RectangleAnimation(
                     color = baseWhite.copy(alpha = 0.1f),
                     shape = RoundedCornerShape(8.dp)
                 )
-//                .fillMaxWidth()
-                                        .width(300.dp) // Responsive width range
-                .height(200.dp)
+                .width(canvasWidth) // Responsive width range
+                .height(canvasHeight)
                 .padding(10.dp)
         ) {
             Column(

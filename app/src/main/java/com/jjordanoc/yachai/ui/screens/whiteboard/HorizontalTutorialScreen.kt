@@ -187,47 +187,30 @@ fun HorizontalTutorialScreen(
                         shape = RoundedCornerShape(8.dp)
                     )
             ) {
-                // Content area with minimal padding and scrolling fallback
+                // Content area with minimal padding
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .padding(all = 5.dp)
                 ) {
-
-                    // Main content text - show different content based on state with scrolling fallback
-                    LazyColumn(
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .padding(all = 5.dp)
-                            .fillMaxSize(),
-                        horizontalAlignment = Alignment.Start,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        item {
-                            Column(
-                                horizontalAlignment = Alignment.Start
-                            ) {
-
-
-                                // Display animations using new grid system
-                                if (uiState.activeAnimations.isNotEmpty()) {
-                                    WhiteboardAutoFill(animations = uiState.activeAnimations)
-                                }
-
-
-                                // Show error message if needed
-                                if (uiState.showConfirmationFailureMessage) {
-                                    Text(
-                                        text = "Por favor, vuelve a intentarlo escribiendo el problema en texto o subiendo una imagen.",
-                                        color = MaterialTheme.colorScheme.error,
-                                        fontSize = 16.sp,
-                                        textAlign = TextAlign.Left,
-                                        lineHeight = 22.sp
-                                    )
-                                }
-                            }
-                        }
+                    // Display animations using new grid system
+                    if (uiState.activeAnimations.isNotEmpty()) {
+                        WhiteboardAutoFill(animations = uiState.activeAnimations)
                     }
 
+                    // Show error message if needed
+                    if (uiState.showConfirmationFailureMessage) {
+                        Text(
+                            text = "Por favor, vuelve a intentarlo escribiendo el problema en texto o subiendo una imagen.",
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 16.sp,
+                            textAlign = TextAlign.Left,
+                            lineHeight = 22.sp,
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(bottom = 16.dp)
+                        )
+                    }
                 }
 
 
