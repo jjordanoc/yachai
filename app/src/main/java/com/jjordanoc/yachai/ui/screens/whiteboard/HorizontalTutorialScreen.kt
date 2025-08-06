@@ -234,7 +234,7 @@ fun HorizontalTutorialScreen(
 
             // Tutorial control buttons
             Column(modifier = Modifier.padding(10.dp)) {
-                // Show status indicator when tutor is speaking
+                // Show text when tutor is speaking
                 Text(
                     text = if (uiState.isAlpacaSpeaking) uiState.tutorMessage.orEmpty() else "",
                     color = Color.Black,

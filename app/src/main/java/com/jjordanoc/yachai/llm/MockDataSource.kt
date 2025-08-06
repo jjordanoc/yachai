@@ -16,13 +16,13 @@ class MockDataSource : LlmDataSource {
   {
     "tutor_message": "¡Hola! Vamos a ayudar a la familia Quispe a construir su corral. Primero, dibujaremos el corral con las dimensiones que nos da.",
     "animations": [
-      { "command": "drawRectangle", "args": { "length": "8", "width": "5", "showGrid": "true" } }
+      { "command": "drawRectangle", "args": { "length": "8", "width": "5", "drawAreaGrid": "true" } }
     ]
   },
   {
     "tutor_message": "Ahora, para saber cuántos metros cuadrados necesitan, vamos a calcular el área del corral. El área de un rectángulo es largo por ancho, ¿verdad?",
     "animations": [
-          { "command": "drawRectangle", "args": { "length": "8", "width": "5", "showGrid": "true" } },
+          { "command": "drawRectangle", "args": { "length": "8", "width": "5", "drawAreaGrid": "true" } },
 
        { "command": "drawExpression", "args": { "expression": "Largo × Ancho = Área" } }
     ]
@@ -30,14 +30,14 @@ class MockDataSource : LlmDataSource {
   {
     "tutor_message": "Así que, vamos a multiplicar el largo (8 metros) por el ancho (5 metros). ¡Mmm, qué rápido! Podemos pensar en ello como contar cuadritos.",
     "animations": [
-          { "command": "drawRectangle", "args": { "length": "8", "width": "5", "showGrid": "true" } },
+          { "command": "drawRectangle", "args": { "length": "8", "width": "5", "drawAreaGrid": "true" } },
        { "command": "drawExpression", "args": { "expression": "8 × 5 = ?" } }
     ]
   },
   {
     "tutor_message": "¡Ah! ¡Vamos a calcularlo! 8 veces 5 son 40. ¡Perfecto!",
     "animations": [
-          { "command": "drawRectangle", "args": { "length": "8", "width": "5", "showGrid": "true" } },
+          { "command": "drawRectangle", "args": { "length": "8", "width": "5", "drawAreaGrid": "true" } },
       { "command": "drawExpression", "args": { "expression": "8 × 5 = 40" } }
     ]
   },

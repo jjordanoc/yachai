@@ -174,14 +174,14 @@ private fun ChatBubble(
         contentAlignment = alignment
     ) {
         Row(
-            modifier = Modifier
-                .widthIn(max = 350.dp)
-                .padding(
-                    start = if (message.isFromUser) 50.dp else 0.dp,
-                    end = if (message.isFromUser) 0.dp else 50.dp
-                ),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = if (message.isFromUser) Arrangement.End else Arrangement.Start
         ) {
+            // Empty space for user messages (left side)
+            if (message.isFromUser) {
+                Spacer(modifier = Modifier.weight(1f))
+            }
+            
             // Speech bubble triangle for AI messages (left side)
             if (!message.isFromUser) {
                 Box(
@@ -214,9 +214,9 @@ private fun ChatBubble(
                 }
             }
             
-            // Main chat bubble
+            // Main chat bubble (same width for both AI and user)
             Card(
-                modifier = Modifier.widthIn(max = 300.dp),
+                modifier = Modifier.weight(2f), // Both AI and user bubbles take 2/3 of available space
                 shape = RoundedCornerShape(15.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = backgroundColor
@@ -263,6 +263,11 @@ private fun ChatBubble(
                     }
                 }
             }
+            
+            // Empty space for AI messages (right side)
+            if (!message.isFromUser) {
+                Spacer(modifier = Modifier.weight(1f))
+            }
         }
     }
 } 
@@ -306,9 +311,7 @@ private fun ThinkingBubble(
         contentAlignment = Alignment.CenterStart
     ) {
         Row(
-            modifier = Modifier
-                .widthIn(max = 350.dp)
-                .padding(end = 50.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Start
         ) {
             // Speech bubble triangle for AI messages (left side)
@@ -341,9 +344,9 @@ private fun ThinkingBubble(
                 }
             }
             
-            // Main thinking bubble
+            // Main thinking bubble with flex layout
             Card(
-                modifier = Modifier.widthIn(max = 300.dp),
+                modifier = Modifier.weight(2f), // Take 2/3 of available space
                 shape = RoundedCornerShape(15.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = TutorialTeal
@@ -392,6 +395,9 @@ private fun ThinkingBubble(
                     }
                 }
             }
+            
+            // Empty space (1/3 of available space)
+            Spacer(modifier = Modifier.weight(1f))
         }
     }
 } 
