@@ -42,11 +42,18 @@ fun QuestionModal(
                 dismissOnClickOutside = true
             )
         ) {
-            QuestionModalContent(
-                onDismiss = onDismiss,
-                viewModel = viewModel,
-                modifier = modifier
-            )
+            // Semi-transparent black background overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f))
+            ) {
+                QuestionModalContent(
+                    onDismiss = onDismiss,
+                    viewModel = viewModel,
+                    modifier = modifier
+                )
+            }
         }
     }
 }
@@ -63,8 +70,7 @@ private fun QuestionModalContent(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.White)
-            .padding(30.dp)
+            .padding(30.dp, 15.dp)
     ) {
         // Header
         Text(
@@ -108,7 +114,6 @@ private fun QuestionModalContent(
             selectedImageUri = null,
             isProcessing = uiState.isQuestionModalProcessing,
             placeholder = "Escribe tu pregunta...",
-            showImageBadge = false,
             modifier = Modifier.fillMaxWidth()
         )
     }

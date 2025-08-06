@@ -45,8 +45,7 @@ fun ProblemInputBar(
     selectedImageUri: android.net.Uri?,
     isProcessing: Boolean,
     modifier: Modifier = Modifier,
-    placeholder: String = "Escribe tu problema de matemáticas",
-    showImageBadge: Boolean = true
+    placeholder: String = "Escribe tu problema de matemáticas"
 ) {
     val context = LocalContext.current
     
@@ -260,7 +259,9 @@ fun ProblemInputBar(
                     disabledContainerColor = Color.Transparent,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent
+                    disabledIndicatorColor = Color.Transparent,
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.DarkGray,
                 ),
                 modifier = Modifier
                     .weight(1f)
@@ -328,7 +329,7 @@ fun ProblemInputBar(
                     }
 
                     // Badge showing image count
-                    if (showImageBadge && selectedImageUri != null) {
+                    if (selectedImageUri != null) {
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
